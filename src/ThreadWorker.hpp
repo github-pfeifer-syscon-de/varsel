@@ -23,11 +23,11 @@
 #include <future>
 #include <chrono>
 #include <queue>
-#include <list>
+#include <vector>
 
 
 
-template< typename T , typename Duration = std::chrono::milliseconds>
+template< typename T >
 class ConcurrentQueue
 {
 
@@ -58,14 +58,10 @@ public:
         } );
     }
 
-    /** @brief  Returns the front element and removes it from the collection
-                No exception is ever returned as we garantee that the deque is not empty
-                before trying to return data.
+    /** @brief  Returns the the queued elements with out.
     **/
-    bool pop_front(std::vector<T>& out, Duration duration) noexcept
+    bool pop_front(std::vector<T>& out) noexcept
     {
-        //auto stat = _condNewData.wait_for(lock, duration);
-        //if (stat == std::cv_status::no_timeout) {
         if (!m_collection.empty()) {
             std::unique_lock<std::mutex> lock{m_mutex};
             out.reserve(m_collection.size());
@@ -73,6 +69,7 @@ public:
                out.emplace_back(std::move(m_collection.front()));
                m_collection.pop_front();
             }
+            lock.unlock();
         }
         return m_active;
     }
@@ -133,9 +130,7 @@ public:
         }
         //std::cout << "Thread::run done" << std::endl;
         m_queue.finish();
-        if (!m_pending) {   // ensure activation
-            m_notify.emit();
-        }
+        m_notify.emit();    // ensure activation (in any case)
         return t;
     }
     void notify(I i) {
@@ -148,9 +143,8 @@ public:
     }
     void emited()
     {
-        //std::cout << "ThreadWorker::emited " << std::boolalpha << m_queue.isActive() << std::endl;
         std::vector<I> out;
-        bool active = m_queue.pop_front(out, std::chrono::milliseconds(10)); // do not block too long
+        bool active = m_queue.pop_front(out);
         if (!out.empty()) {
             process(out);
         }
