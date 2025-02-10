@@ -1,0 +1,55 @@
+# German translations for varsel package
+# German translation for varsel.
+# This file is put in the public domain.
+#  <varsel@pfeifer-syscon.de>, 2024.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: varsel 0.1\n"
+"Report-Msgid-Bugs-To: varsel@pfeifer-syscon.de\n"
+"POT-Creation-Date: 2024-12-22 08:33+0100\n"
+"PO-Revision-Date: 2024-12-22 08:34+0100\n"
+"Last-Translator:  <varsel@pfeifer-syscon.de>\n"
+"Language-Team: German <translation-team-de@lists.sourceforge.net>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/VarselList.cpp:90
+#, c++-format
+msgid "Error {} loading {}"
+msgstr ""
+
+#: src/VarselWin.cpp:41
+msgid "Save File"
+msgstr ""
+
+#: src/VarselWin.cpp:42
+msgid "Open File"
+msgstr ""
+
+#: src/VarselWin.cpp:48
+msgid "_Cancel"
+msgstr ""
+
+#: src/VarselWin.cpp:50
+msgid "_Save"
+msgstr ""
+
+#: src/VarselWin.cpp:51
+msgid "_Open"
+msgstr ""
+
+#: src/VarselWin.cpp:135
+msgid "Varsel"
+msgstr ""
+
+#: src/DataSource.hpp:56
+msgid "Name"
+msgstr ""
+
+#: src/DataSource.hpp:58
+msgid "Size"
+msgstr ""

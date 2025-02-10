@@ -1,0 +1,8 @@
+# List of source files which contain translatable strings.
+src/VarselList.cpp
+src/VarselWin.cpp
+src/DataSource.cpp
+src/DataSource.hpp
+src/SourceView.cpp
+res/app-menu.ui
+res/varsel-win.ui

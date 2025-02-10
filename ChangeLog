@@ -1,0 +1,4 @@
+2024-12-20  gettextize  <bug-gnu-gettext@gnu.org>
+
+	* configure.ac (AC_CONFIG_FILES): Add po/Makefile.in.
+
