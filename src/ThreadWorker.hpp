@@ -130,14 +130,18 @@ public:
         }
         //std::cout << "Thread::run done" << std::endl;
         m_queue.finish();
+        // ensure sequential execution for last step
+        std::unique_lock<std::mutex> lock{ m_mutex };
         emit();
+        lock.unlock();
         return t;
     }
     void emit()
     {
-        std::unique_lock<std::mutex> lock{ m_mutex };
-        m_notify.emit();    // ensure activation (in any case)
-        lock.unlock();
+        if (!m_pending) {
+            m_pending = true;
+            m_notify.emit();    // ensure activation (in any case)
+        }
     }
     void notify(I i) {
         //std::cout << "ThreadWorker::notify " << std::boolalpha << m_queue.isActive() << std::endl;
@@ -149,14 +153,16 @@ public:
         std::unique_lock<std::mutex> lock{ m_mutex };
         std::vector<I> out;
         bool active = m_queue.pop_front(out);
+        //std::cout << "ThreadWorker::emited active " << std::boolalpha << active << std::endl;
         if (!out.empty()) {
             process(out);
         }
-        lock.unlock();
+        m_pending = false;
         if (!active && !m_completed) {
             m_completed = true;
             completed();
         }
+        lock.unlock();
         //std::cout << "ThreadWorker::emited done " << std::boolalpha << m_queue.isActive() << std::endl;
     }
     void completed()
@@ -185,8 +191,8 @@ private:
     std::future<T> m_future;
     T m_t;
     std::exception_ptr m_eptr;
-    bool m_completed{false};
-    //volatile bool m_pending{false};       //
-    std::mutex   m_mutex;                   ///< ensure dispatch is not crashing (on nested invocation)
+    volatile bool m_completed{false};
+    volatile bool m_pending{false};
+    std::mutex m_mutex;
 };
 

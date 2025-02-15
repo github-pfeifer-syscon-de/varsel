@@ -420,7 +420,7 @@ VarselWin::showFile(const std::string& uri)
 void
 VarselWin::checkAfterSend(const std::shared_ptr<BusEvent>& event)
 {
-    std::cout << "after send " << std::boolalpha << " compl " << event->isCompleted() << std::endl;
+    //std::cout << "after send compl " << std::boolalpha << event->isCompleted() << std::endl;
     if (!event->isCompleted()) {
         auto msg = event->getCompletionInfo();
         if (!msg.empty()){
