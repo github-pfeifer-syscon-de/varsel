@@ -130,26 +130,31 @@ public:
         }
         //std::cout << "Thread::run done" << std::endl;
         m_queue.finish();
-        m_notify.emit();    // ensure activation (in any case)
+        emit();
         return t;
+    }
+    void emit()
+    {
+        std::unique_lock<std::mutex> lock{ m_mutex };
+        m_notify.emit();    // ensure activation (in any case)
+        lock.unlock();
     }
     void notify(I i) {
         //std::cout << "ThreadWorker::notify " << std::boolalpha << m_queue.isActive() << std::endl;
         m_queue.emplace_back(i);
-        if (!m_pending) {
-            m_notify.emit();
-            m_pending = true;
-        }
+        emit();
     }
     void emited()
     {
+        std::unique_lock<std::mutex> lock{ m_mutex };
         std::vector<I> out;
         bool active = m_queue.pop_front(out);
         if (!out.empty()) {
             process(out);
         }
-        m_pending = false;
-        if (!active) {
+        lock.unlock();
+        if (!active && !m_completed) {
+            m_completed = true;
             completed();
         }
         //std::cout << "ThreadWorker::emited done " << std::boolalpha << m_queue.isActive() << std::endl;
@@ -159,13 +164,16 @@ public:
         m_t = m_future.get();
         done();
     }
-    void hasError()
+    // this function propagates the exception
+    //   that has been thrown when executing doInBackground
+    //   or the result
+    T getResult()
     {
         if (m_eptr) {
             std::rethrow_exception(m_eptr);
         }
+        return m_t;
     }
-
 
 protected:
     virtual T doInBackground() = 0;
@@ -174,10 +182,11 @@ protected:
 private:
     ConcurrentQueue<I> m_queue;
     Glib::Dispatcher m_notify;
-    volatile bool m_pending{false};
     std::future<T> m_future;
     T m_t;
     std::exception_ptr m_eptr;
-
+    bool m_completed{false};
+    //volatile bool m_pending{false};       //
+    std::mutex   m_mutex;                   ///< ensure dispatch is not crashing (on nested invocation)
 };
 

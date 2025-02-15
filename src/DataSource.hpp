@@ -167,6 +167,24 @@ protected:
     Glib::ustring m_dir;
 };
 
+enum class Severity
+{
+    Info,
+    Warning,
+    Error
+};
+
+class ListListener
+{
+public:
+    virtual ~ListListener() = default;
+
+    virtual void nodeAdded(const std::shared_ptr<BaseTreeNode>& baseTreeNode) = 0;
+    virtual void listDone(Severity severity, const Glib::ustring& msg) = 0;
+protected:
+    ListListener() = default;
+};
+
 class FileTreeNode
 : public BaseTreeNode
 {
@@ -209,6 +227,13 @@ protected:
 };
 
 
+class EventNotifyContext
+{
+public:
+    virtual void checkAfterSend(const std::shared_ptr<BusEvent>& event) = 0;
+};
+
+
 class DataAction
 {
 public:
@@ -216,6 +241,7 @@ public:
     virtual ~DataAction() = default;
 
     virtual void setContext(const std::vector<Glib::RefPtr<Gio::File>>& files) = 0;
+    virtual void setEventNotifyContext(EventNotifyContext* eventNotifyContext) = 0;
     virtual bool isAvail() = 0;
     virtual void execute(const Glib::VariantBase& val) = 0;
 
@@ -242,10 +268,12 @@ public:
     bool isAvail() override;
     void execute(const Glib::VariantBase& val) override;
     void setContext(const std::vector<Glib::RefPtr<Gio::File>>& files) override;
+    void setEventNotifyContext(EventNotifyContext* eventNotifyContext) override;
 protected:
     std::shared_ptr<OpenEvent> m_openEvent;
 private:
     VarselApp* m_application;
+    EventNotifyContext* m_eventNotifyContext{nullptr};
 };
 
 class VarselApp;
@@ -258,7 +286,8 @@ public:
     virtual ~DataSource() = default;
 
     virtual void update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel) = 0;
+          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+        , ListListener* listListener) = 0;
     virtual Glib::RefPtr<psc::ui::TreeNodeModel> createTree();
     virtual const char* getConfigGroup() = 0;
     virtual Glib::RefPtr<Gio::File> getFileName(const std::string& name) = 0;

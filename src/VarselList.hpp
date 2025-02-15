@@ -29,6 +29,7 @@ class VarselWin;
 
 class VarselList
 : public Gtk::Window
+, public ListListener
 {
 public:
     VarselList(
@@ -46,7 +47,9 @@ public:
         , VarselWin* varselWin);
     bool on_view_button_press_event(GdkEventButton* event);
     bool on_view_button_release_event(GdkEventButton* event);
-
+    void nodeAdded(const std::shared_ptr<BaseTreeNode>& baseTreeNode) override;
+    void listDone(Severity severity, const Glib::ustring& msg) override;
+    void showMessage(const Glib::ustring& msg, Gtk::MessageType msgType = Gtk::MessageType::MESSAGE_INFO);
 
     static constexpr auto ACTION_GROUP = "list";
     static constexpr auto PANED_POS = "panedPos";

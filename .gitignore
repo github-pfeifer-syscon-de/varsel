@@ -49,3 +49,11 @@
 /po/insert-header.sed
 /po/remove-potcdate.sed
 /po/Makefile.in
+/test/worker_test
+/test/worker_test.log
+/test/worker_test.trs
+/test/archiv_test.trs
+/test/archiv_test
+/test/archiv_test.log
+/test/test.tgz
+/test/test.zip

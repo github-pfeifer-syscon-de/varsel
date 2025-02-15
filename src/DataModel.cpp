@@ -23,14 +23,6 @@
 #include "DataModel.hpp"
 
 
-//namespace
-//{
-//  enum
-//  {
-//    COL_INT,
-//    COL_STRING
-//  };
-//}
 
 namespace psc {
 namespace ui {

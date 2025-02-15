@@ -1,6 +1,6 @@
 /* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * Copyright (C) 2024 RPf <gpl3@pfeifer-syscon.de>
+ * Copyright (C) 2025 RPf <gpl3@pfeifer-syscon.de>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,16 +18,24 @@
 
 #pragma once
 
-class Git_test
+#include "Archiv.hpp"
+
+
+class ArchivTest
+: public ArchivListener
 {
 public:
-    Git_test();
-    explicit Git_test(const Git_test& orig) = delete;
-    virtual ~Git_test() = default;
+    ArchivTest();
+    explicit ArchivTest(const ArchivTest& orig) = delete;
+    virtual ~ArchivTest() = default;
 
-    bool reposCpp();
-    bool test_something();
+    bool readTest();
+    bool readWrite();
+    void archivUpdate(const std::shared_ptr<ArchivEntry>& entry) override;
+    void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) override;
+
 private:
-
+    int m_entries{0};
+    int m_final{0};
 };
 

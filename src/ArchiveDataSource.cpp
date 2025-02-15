@@ -17,6 +17,7 @@
  */
 
 #include <iostream>
+#include <psc_i18n.hpp>
 
 #include "ArchiveDataSource.hpp"
 
@@ -24,7 +25,7 @@
 
 
 // use additional listener for processing in main thread
-ArchivWorker::ArchivWorker(            const Glib::RefPtr<Gio::File>& file
+ArchivWorker::ArchivWorker(const Glib::RefPtr<Gio::File>& file
             , ArchivListener* archivListener)
 : ThreadWorker()
 , ArchivListener()
@@ -42,9 +43,8 @@ ArchivWorker::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
 }
 
 void
-ArchivWorker::archivDone(ArchivSummary archivSummary)
+ArchivWorker::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
 {
-    std::cout << "ArchivWorker::archivDone " << archivSummary.getEntries() << std::endl;
     m_archivSummary = archivSummary;
 }
 
@@ -52,8 +52,8 @@ ArchivSummary
 ArchivWorker::doInBackground()
 {
     //std::cout << "ArchivWorker::doInBackground " << m_file->get_path() << std::endl;
-    Archiv archiv(m_file, this);
-    archiv.read();
+    Archiv archiv(m_file);
+    archiv.read(this);
     return m_archivSummary;
 }
 
@@ -70,14 +70,16 @@ ArchivWorker::process(const std::vector<std::shared_ptr<ArchivEntry>>& entries)
 void
 ArchivWorker::done()
 {
-    std::cout << "ArchivWorker::done " << m_archivSummary.getEntries() << std::endl;
+    //std::cout << "ArchivWorker::done " << m_archivSummary.getEntries() << std::endl;
+    Glib::ustring msg;
     try {
-        hasError();
+        getResult();
     }
     catch (const std::exception& exc) {
         std::cout << "archiv error " << exc.what() << std::endl;
+        msg = exc.what();
     }
-    m_archivListener->archivDone(m_archivSummary);
+    m_archivListener->archivDone(m_archivSummary, msg);
 }
 
 ArchiveDataSource::ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, VarselApp* application)
@@ -90,8 +92,10 @@ ArchiveDataSource::ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, Varsel
 bool
 ArchiveDataSource::can_handle(const Glib::RefPtr<Gio::File>& file)
 {
-    Archiv archiv(file, nullptr);
-    return archiv.canRead();
+    Archiv archiv(file);
+    bool ret = archiv.canRead();
+    std::cout << "ArchiveDataSource::can_handle " << file->get_path() << std::boolalpha << " ret " << ret << std::endl;
+    return ret;
 }
 
 void
@@ -162,6 +166,9 @@ ArchiveDataSource::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
                     addNode->addChild(partItem);
                     m_treeModel->memory_row_inserted(partItem); // notify as the model was attached
                     foundNode = partItem;
+                    if (m_listListener) {
+                        m_listListener->nodeAdded(partItem);
+                    }
                 }
                 addNode = foundNode;
             }
@@ -185,19 +192,37 @@ ArchiveDataSource::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
 
 // Archiv Listener
 void
-ArchiveDataSource::archivDone(ArchivSummary archivSummary)
+ArchiveDataSource::archivDone(ArchivSummary archivSummary, const Glib::ustring& errorMsg)
 {
-    std::cout << "outer"
-              << " archiv  " << archivSummary.getEntries()
-              << " recvd " <<  m_entries << std::endl;
-    m_archivWorker.reset();     // clear reference ? even if this will return there (better way?)
-    m_treeModel.reset();        // clear reference to avoid interlocking reference count
+    if (m_listListener) {
+        Severity sev = Severity::Info;
+        Glib::ustring msg;
+        if (!errorMsg.empty()) {
+            sev = Severity::Error;
+            msg = Glib::ustring::sprintf(_("Error %s"), errorMsg);
+        }
+        if (archivSummary.getEntries() != m_entries) {
+            sev = Severity::Warning;
+            msg = Glib::ustring::sprintf(_("Missmatch transfered files %d got %d"), archivSummary.getEntries(), m_entries);
+        }
+        else {
+            msg = Glib::ustring::sprintf(_("Transfered files %d"), archivSummary.getEntries());
+        }
+        std::cout << "ArchiveDataSource::archivDone " << msg << std::endl;
+        m_listListener->listDone(sev, msg);
+        m_listListener = nullptr;   // this should no long be used
+    }
+    // this is risky ... so leave it for now
+    //m_archivWorker.reset();     // clear reference ? even if this will return there (better way?)
+    //m_treeModel.reset();        // clear reference to avoid interlocking reference count
 }
 
 void
 ArchiveDataSource::update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel)
+          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+        , ListListener* listListener)
 {
+    m_listListener = listListener;
     m_treeModel = treeModel;
     m_treeItem = std::make_shared<FileTreeNode>("", 0);
     treeModel->append(m_treeItem);

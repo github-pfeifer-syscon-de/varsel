@@ -24,6 +24,8 @@
 #include <Log.hpp>
 #include <vte/vte.h>
 
+#include "DataSource.hpp"
+
 class VarselApp;
 class VarselList;
 class KeyConfig;
@@ -73,7 +75,9 @@ private :
 };
 
 class VarselWin
-: public Gtk::ApplicationWindow {
+: public Gtk::ApplicationWindow
+, public EventNotifyContext
+{
 public:
     VarselWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, VarselApp* varselApp);
     virtual ~VarselWin() = default;
@@ -82,6 +86,7 @@ public:
     void show_error(const Glib::ustring& msg, Gtk::MessageType type = Gtk::MessageType::MESSAGE_WARNING);
     void showFile(const std::string& uri);
     void showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files);
+    void checkAfterSend(const std::shared_ptr<BusEvent>& event) override;
     void openTerm(const std::string& uri);
     void remove(VarselList* varselList);
     VarselApp* getApplication();

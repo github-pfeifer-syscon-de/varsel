@@ -94,6 +94,20 @@ OpenEvent::isCompleted()
     return m_context.empty();
 }
 
+std::string
+OpenEvent::getCompletionInfo()
+{
+    std::string remain;
+    remain.reserve(64);
+    for (auto& file : getFiles()) {
+        if (!remain.empty()) {
+            remain += ", ";
+        }
+        remain += file->getFile()->get_path();
+    }
+    return remain;
+}
+
 EventBus::EventBus()
 {
 }

@@ -26,8 +26,8 @@
 
 #include "GitRepository.hpp"
 #include "Git_test.hpp"
-//#include "common.h"
-//#include "args.h"
+
+// this is a "manual" test
 
 Git_test::Git_test()
 {
@@ -41,7 +41,7 @@ Git_test::reposCpp()
 {
     std::cout << "Git_test::reposCpp ----------" << std::endl;
     try {
-        psc::git::Repository repo("/../../csrc.git/genericImg");    // you might want to use something different
+        psc::git::Repository repo("..");
         auto commit = repo.getSingelCommit("HEAD^{commit}");
         std::cout << commit->getMessage()  << std::endl;
         auto sig = commit->getSignature();
@@ -75,8 +75,11 @@ Git_test::reposCpp()
 }
 
 bool
-Git_test::test_file()
+Git_test::test_something()
 {
+
+
+
     return true;
 }
 
@@ -88,7 +91,7 @@ int main(int argc, char** argv)
     if (!git_test.reposCpp()) {
         return 2;
     }
-    if (!git_test.test_file()) {
+    if (!git_test.test_something()) {
         return 3;
     }
 

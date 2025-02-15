@@ -33,7 +33,8 @@ public:
     virtual ~FileDataSource() = default;
 
     void update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel) override;
+          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+        , ListListener* listListener) override;
     const char* getConfigGroup() override;
     Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
 

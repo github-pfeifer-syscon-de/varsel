@@ -39,7 +39,8 @@ FileDataSource::FileDataSource(const Glib::RefPtr<Gio::File>& file, VarselApp* a
 
 void
 FileDataSource::update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel)
+          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+        , ListListener* listListener)
 {
     Glib::RefPtr<Gio::FileEnumerator> enumerat;
     try {

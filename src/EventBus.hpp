@@ -31,6 +31,7 @@ public:
     virtual ~BusEvent() = default;
 
     virtual bool isCompleted() = 0;
+    virtual std::string getCompletionInfo() = 0;
 };
 
 class EventItem
@@ -62,6 +63,7 @@ public:
     std::vector<std::shared_ptr<EventItem>> getFiles();
     size_t getSize();
     bool isCompleted() override;
+    std::string getCompletionInfo() override;
 private:
     std::vector<std::shared_ptr<EventItem>> m_context;
 };
@@ -78,6 +80,8 @@ public:
 
 using pEventListener = std::shared_ptr<EventBusListener>;
 
+class EventNotifyContext;
+
 class EventBus
 {
 public:
@@ -90,5 +94,6 @@ public:
 protected:
 private:
     std::list<pEventListener> m_eventListner;
+    EventNotifyContext* m_eventNotifyContext;
 };
 

@@ -36,6 +36,7 @@ VarselList::VarselList(
     , const std::shared_ptr<DataSource>& data
     , VarselWin* varselWin)
 : Gtk::Window(cobject)
+, ListListener()
 , m_data{data}
 , m_varselWin{varselWin}
 {
@@ -51,7 +52,7 @@ VarselList::VarselList(
     m_refTreeModel = data->createTree();
     //tree->clear();    consider these for update ?
     //list->clear();
-    data->update(m_refTreeModel);
+    data->update(m_refTreeModel, this);
     auto treeObj = builder->get_object("tree_view");
     m_treeView = Glib::RefPtr<Gtk::TreeView>::cast_dynamic(treeObj);
     m_treeView->append_column(_("Name"), data->m_treeColumns->m_name);
@@ -89,6 +90,32 @@ VarselList::VarselList(
         sigc::mem_fun(*this, &VarselList::on_view_button_release_event), false);
     m_listView->add_events(Gdk::EventMask::BUTTON_PRESS_MASK
                          | Gdk::EventMask::BUTTON_RELEASE_MASK);
+}
+
+void
+VarselList::showMessage(const Glib::ustring& msg, Gtk::MessageType msgType)
+{
+    Gtk::MessageDialog messagedialog(*this, msg, false, msgType);
+    messagedialog.set_transient_for(*this);
+    messagedialog.run();
+    //messagedialog.hide(); the example leaves this out?
+}
+
+void
+VarselList::nodeAdded(const std::shared_ptr<BaseTreeNode>& baseTreeNode)
+{
+    if (baseTreeNode->getDepth() <= 2) {
+        m_treeView->expand_to_path(baseTreeNode->getPath());
+    }
+}
+
+void
+VarselList::listDone(Severity severity, const Glib::ustring& msg)
+{
+    std::cout << "VarselList::listDone " << msg << std::endl;
+    //if (severity > Severity::Info) {
+    showMessage(msg, severity == Severity::Warning ? Gtk::MessageType::MESSAGE_WARNING : Gtk::MessageType::MESSAGE_ERROR);
+    //}
 }
 
 void
@@ -168,6 +195,7 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
         // -> check if context is not empty
         for (auto& action : m_actions) {
             action->setContext(files);
+            action->setEventNotifyContext(m_varselWin);
             if (action->isAvail()) {
                 auto menuItem = Gio::MenuItem::create(action->getLabel(), std::string(ACTION_GROUP) + "." + action->getName());
                 gioMenu->append_item(menuItem);
@@ -233,6 +261,7 @@ ListFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
         for (auto& item : openEvent->getFiles()) {
             auto file = item->getFile();
             auto type = file->query_file_type();
+            std::cout << "ListFactory::notify testing " << item->getFile()->get_path() << std::endl;
             //auto basename = file->get_basename();
             //std::cout << "basename " << basename << std::endl;
             std::shared_ptr<DataSource> ds;
@@ -249,8 +278,8 @@ ListFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
                 ds = std::make_shared<FileDataSource>(file, m_varselWin->getApplication());
             }
             if (ds) {
-                /*auto varselList = */
                 VarselList::show(file->get_uri(), ds, m_varselWin);
+                std::cout << "ListFactory::notify remove " << item->getFile()->get_path() << std::endl;
                 openEvent->remove(item);
             }
         }

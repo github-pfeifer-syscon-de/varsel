@@ -4,5 +4,7 @@ src/VarselWin.cpp
 src/DataSource.cpp
 src/DataSource.hpp
 src/SourceView.cpp
+src/ArchivDataSource.cpp
+src/Archiv.cpp
 res/app-menu.ui
 res/varsel-win.ui

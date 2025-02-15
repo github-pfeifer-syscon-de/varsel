@@ -19,6 +19,7 @@
 #include <iostream>
 #include <StringUtils.hpp>
 #include <psc_i18n.hpp>
+#include <psc_format.hpp>
 #include <array>
 #include <gdk/gdk.h>
 #include <unistd.h> // chdir
@@ -417,12 +418,26 @@ VarselWin::showFile(const std::string& uri)
 }
 
 void
+VarselWin::checkAfterSend(const std::shared_ptr<BusEvent>& event)
+{
+    std::cout << "after send " << std::boolalpha << " compl " << event->isCompleted() << std::endl;
+    if (!event->isCompleted()) {
+        auto msg = event->getCompletionInfo();
+        if (!msg.empty()){
+            auto showMsg = psc::fmt::vformat(_("Unhandled files {}"), psc::fmt::make_format_args(msg));
+            showMessage(showMsg, Gtk::MessageType::MESSAGE_WARNING);
+        }
+    }
+}
+
+void
 VarselWin::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files)
 {
     auto openEvent = std::make_shared<OpenEvent>();
     openEvent->setContext(files);
     if (openEvent->isAvail()) {
         m_application->getEventBus()->send(openEvent);
+        checkAfterSend(openEvent);
     }
     else {
         std::cout << "VarselWin::showFiles open action not availabele" << std::endl;
@@ -510,7 +525,8 @@ VarselWin::close(VarselView* varselView)
 void
 VarselWin::showMessage(const Glib::ustring& msg, Gtk::MessageType msgType)
 {
-    Gtk::MessageDialog messagedialog(*m_application->get_active_window(), msg, false, msgType);
+    Gtk::MessageDialog messagedialog(*this, msg, false, msgType);
+    messagedialog.set_transient_for(*this);
     messagedialog.run();
     messagedialog.hide();
 }

@@ -171,6 +171,12 @@ OpenDataAction::setContext(const std::vector<Glib::RefPtr<Gio::File>>& files)
     m_openEvent->setContext(files);
 }
 
+void
+OpenDataAction::setEventNotifyContext(EventNotifyContext* eventNotifyContext)
+{
+    m_eventNotifyContext = eventNotifyContext;
+}
+
 bool
 OpenDataAction::isAvail()
 {
@@ -183,7 +189,9 @@ OpenDataAction::execute(const Glib::VariantBase& val)
     //std::cout << "OpenDataAction::execute "
     //          << "  for " << m_context.size() << std::endl;
     m_application->getEventBus()->send(m_openEvent);
-    //m_application->createSourceWindow(m_context);
+    if (m_eventNotifyContext) {
+        m_eventNotifyContext->checkAfterSend(m_openEvent);
+    }
 }
 
 DataSource::DataSource(VarselApp* application)

@@ -37,7 +37,7 @@ public:
     virtual ~ArchivWorker() = default;
 
     void archivUpdate(const std::shared_ptr<ArchivEntry>& entry) override;
-    void archivDone(ArchivSummary archivSummary) override;
+    void archivDone(ArchivSummary archivSummary, const Glib::ustring& msg) override;
 
 protected:
 
@@ -62,14 +62,15 @@ public:
     virtual ~ArchiveDataSource() = default;
 
     void update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel) override;
+          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+        , ListListener* listListener) override;
     const char* getConfigGroup() override;
     Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
     static bool can_handle(const Glib::RefPtr<Gio::File>& file);
     std::shared_ptr<ListColumns> getListColumns() override;
 
     void archivUpdate(const std::shared_ptr<ArchivEntry>& entry)  override;
-    void archivDone(ArchivSummary archivSummary) override;
+    void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) override;
 
 private:
     Glib::RefPtr<Gio::File> m_file;
@@ -77,5 +78,6 @@ private:
     std::shared_ptr<FileTreeNode> m_treeItem;
     std::shared_ptr<ArchivWorker> m_archivWorker;
     size_t m_entries{0u};
+    ListListener* m_listListener{nullptr};
 };
 

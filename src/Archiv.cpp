@@ -18,8 +18,13 @@
 
 #include <fcntl.h>
 #include <iostream>
+#include <psc_format.hpp>
 
 #include "Archiv.hpp"
+
+ArchivEntry::ArchivEntry()
+{
+}
 
 ArchivEntry::ArchivEntry(struct archive_entry *entry)
 {
@@ -47,127 +52,474 @@ ArchivEntry::ArchivEntry(struct archive_entry *entry)
     }
 }
 
-ArchivListener::ArchivListener()
+ArchivException::ArchivException(const std::string& msg)
+: m_msg{msg}
 {
+
 }
 
-Archiv::Archiv(Glib::RefPtr<Gio::File> file, ArchivListener* listener)
-: m_file{file}
-, m_listener{listener}
+const char*
+ArchivException::what() const noexcept
 {
+    return m_msg.c_str();
 }
 
-
-static constexpr size_t BUF_SIZE{64u*1024u};
-
-struct mydata
+static int
+c_read_open(struct archive *a, void *client_data)
 {
-    int fd{0};
-    char buff[BUF_SIZE];
-    const char *name;
-    virtual ~mydata()
-    {
-        myclose();
-    }
-
-    int myopen()
-    {
-        fd = open(name, O_RDONLY);
-        return (fd >= 0 ? ARCHIVE_OK : ARCHIVE_FATAL);
-    }
-    la_ssize_t myread(const void **ebuff)
-    {
-        *ebuff = buff;
-        return (read(fd, buff, BUF_SIZE));
-    }
-    int myclose()
-    {
-        if (fd > 0) {
-            close(fd);
-            fd = 0;
-        }
-        return ARCHIVE_OK;
-    }
-};
-
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_readopen(a);
+}
 
 static la_ssize_t
-myread(struct archive *a, void *client_data, const void **buff)
+c_read(struct archive *a, void *client_data, const void **buff)
 {
-    auto mydata = reinterpret_cast<struct mydata*>(client_data);
-    return mydata->myread(buff);
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_read(a, buff);
+}
+
+static la_ssize_t
+c_read_skip(struct archive *a, void *client_data, off_t request)
+{
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_readskip(a, request);
 }
 
 static int
-myopen(struct archive *a, void *client_data)
+c_read_close(struct archive *a, void *client_data)
 {
-    auto mydata = reinterpret_cast<struct mydata*>(client_data);
-    return mydata->myopen();
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_readclose();
+}
+
+ static int
+ c_write_open(struct archive *a, void *client_data)
+ {
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_writeopen(a);
+ }
+
+static la_ssize_t
+c_write(struct archive *a, void *client_data, const void *buffer, size_t length)
+{
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_write(a, buffer, length);
 }
 
 static int
-myclose(struct archive *a, void *client_data)
+c_write_close(struct archive *a, void *client_data)
 {
-    auto mydata = reinterpret_cast<struct mydata*>(client_data);
-    return mydata->myclose();
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_writeclose(a);
+}
+
+static int
+c_write_free(struct archive *a, void *client_data)
+{
+    auto archivpp = reinterpret_cast<Archiv*>(client_data);
+    return archivpp->cc_writefree(a);
+}
+
+Archiv::Archiv(Glib::RefPtr<Gio::File> file)
+: m_file{file}
+{
+}
+
+Archiv::~Archiv()
+{
+    cc_readclose(); // just in case this was left out
+    cc_writeclose(nullptr);
 }
 
 void
-Archiv::read()
+Archiv::read(ArchivListener* listener)
 {
-    struct mydata mydata;
-    struct archive_entry *entry;
     struct archive* archiv = archive_read_new();
-
-    auto name = m_file->get_path();
-    //std::cout << "ArchiveDataSource::ArchiveDataSource name " << name << std::endl;
-
-    mydata.name = name.c_str();
     archive_read_support_filter_all(archiv);
     archive_read_support_format_all(archiv);
-    archive_read_open(archiv, reinterpret_cast<void*>(&mydata), myopen, myread, myclose);
-    // returns separate compressions e.g. tar.gz file will be gzip, none, zip file will be none
-    for (int i = 0; i <  archive_filter_count(archiv); ++i) {
-        const char * compress = archive_filter_name(archiv, i);
-        std::cout << i << " compress " << compress << std::endl;
-    }
-
-    while (archive_read_next_header(archiv, &entry) == ARCHIVE_OK) {
-        auto archivEntry = std::make_shared<ArchivEntry>(entry);
-        //archive_entry_free(entry); the wiki examples doesn't care about this
-        m_listener->archivUpdate(archivEntry);
-        archive_read_data_skip(archiv);
-    }
+    Glib::ustring msg;
     ArchivSummary summary;
-    summary.setEntries(archive_file_count(archiv));
-    archive_read_close(archiv);
-    archive_read_free(archiv);
-    m_listener->archivDone(summary);
+    int ret = archive_read_open2(archiv, reinterpret_cast<void*>(this), c_read_open, c_read, c_read_skip, c_read_close);
+    if (ret == ARCHIVE_OK) {
+        struct archive_entry *entry;
+        while ((ret = archive_read_next_header(archiv, &entry)) == ARCHIVE_OK) {
+            // the entry seems a internal structure as it doesn't change so no need to free as it seems
+            auto archivEntry = std::make_shared<ArchivEntry>(entry);
+            listener->archivUpdate(archivEntry);
+            int ret = listener->handleContent(archiv);
+            if (ret != ARCHIVE_OK) {
+                auto archErr = archive_error_string(archiv);
+                msg = archErr ? std::string(archErr) : psc::fmt::vformat(_("Archiv error {}"), psc::fmt::make_format_args(ret));
+                break;
+            }
+        }
+        if (ret != ARCHIVE_EOF) {
+            auto archErr = archive_error_string(archiv);
+            msg = archErr ? std::string(archErr) : psc::fmt::vformat(_("Archiv error {}"), psc::fmt::make_format_args(ret));
+        }
+        else {
+            // returns separate compressions e.g. tar.gz file will be gzip, none, zip file will be none
+            for (int i = 0; i <  archive_filter_count(archiv); ++i) {
+                int cmp = archive_filter_code(archiv, i);
+                if (cmp != ARCHIVE_FILTER_NONE) {
+                    const char* compress = archive_filter_name(archiv, i);
+                    if (compress) {
+                        m_readFormats.push_back(std::string(compress));
+                    }
+                }
+                else {
+                    const char* fmt = archive_format_name(archiv);
+                    if (fmt) {
+                        m_readFormats.push_back(std::string(fmt));
+                    }
+                }
+            }
+        }
+        summary.setEntries(archive_file_count(archiv));
+        archive_read_close(archiv);
+    }
+    else {
+        auto archErr = archive_error_string(archiv);
+        msg = archErr ? std::string(archErr) : psc::fmt::vformat(_("Archiv error {}"), psc::fmt::make_format_args(ret));
+    }
+    if (archiv) {
+        archive_read_free(archiv);
+    }
+    if (!msg.empty()) { // keep processing do this as last step so we free c-side
+        throw ArchivException(msg);
+    }
+    //std::cout << "msg " << msg << std::endl;
+    listener->archivDone(summary, msg);
+}
+
+
+void
+Archiv::setFormat(struct archive* archiv)
+{
+    for (auto fmt : m_writeFormats) {
+        if (fmt & ARCHIVE_FORMAT_BASE_MASK) {
+            int ret = archive_write_set_format(archiv, fmt);
+            if (ret != ARCHIVE_OK) {
+                throw ArchivException(psc::fmt::format("Format {} unknown ", fmt));  // this is a internal message
+            }
+        }
+        else {
+            int ret = archive_write_add_filter(archiv, fmt);
+            if (ret != ARCHIVE_OK) {
+                throw ArchivException(psc::fmt::format("Compression {} unknown ", fmt));  // this is a internal message
+            }
+        }
+    }
+}
+
+void
+Archiv::write(ArchivProvider* provider)
+{
+    struct archive* archiv = archive_write_new();
+    setFormat(archiv);
+    int ret = archive_write_open2(archiv, reinterpret_cast<void*>(this), c_write_open, c_write, c_write_close, c_write_free);
+    Glib::ustring msg;
+    if (ret == ARCHIVE_OK) {
+        while (true) {
+            auto srcEntry = provider->getNextEntry();
+            if (!srcEntry) {
+                break;
+            }
+            //std::cout << "Archiv::write filename " << srcEntry->getPath() << std::endl;
+            struct archive_entry *entry{nullptr};
+            if (srcEntry->getMode() == AE_IFDIR) {
+                entry = archive_entry_new();
+                archive_entry_set_pathname_utf8(entry, srcEntry->getPath().c_str());
+                archive_entry_set_filetype(entry, srcEntry->getMode());
+                archive_entry_set_perm(entry, srcEntry->getPermission());
+            }
+            else if (srcEntry->getMode() == AE_IFREG) {
+                entry = archive_entry_new();
+                archive_entry_set_pathname_utf8(entry, srcEntry->getPath().c_str());
+                archive_entry_set_filetype(entry, srcEntry->getMode());
+                archive_entry_set_size(entry, srcEntry->getSize());
+                archive_entry_set_perm(entry, srcEntry->getPermission());
+                archive_write_header(archiv, entry);
+                ret = provider->writeContent(this, archiv, entry);
+                if (ret != ARCHIVE_OK) {
+                    auto archErr = archive_error_string(archiv);
+                    msg = archErr ? std::string(archErr) : psc::fmt::vformat(_("Archiv error {}"), psc::fmt::make_format_args(ret));
+                    break;
+                }
+            }
+            if (entry) {
+                archive_entry_free(entry);
+            }
+        }
+        archive_write_close(archiv);
+    }
+    else {
+        auto archErr = archive_error_string(archiv);
+        msg = archErr ? std::string(archErr) : psc::fmt::vformat(_("Archiv error {}"), psc::fmt::make_format_args(ret));
+    }
+    if (archiv) {
+        archive_write_free(archiv);
+    }
+    if (!msg.empty()) { // keep process so we free c-side
+        throw ArchivException(msg);
+    }
+    return;
 }
 
 bool
 Archiv::canRead()
 {
-// see no alternative to open it ...
+// see no alternative to opening it ...
     bool has_entries{false};
-    struct mydata mydata;
-    struct archive_entry *entry;
     struct archive* archiv = archive_read_new();
-    auto name = m_file->get_path();
-    //std::cout << "ArchiveDataSource::ArchiveDataSource name " << name << std::endl;
-    mydata.name = name.c_str();
     archive_read_support_filter_all(archiv);
     archive_read_support_format_all(archiv);
-    archive_read_open(archiv, reinterpret_cast<void*>(&mydata), myopen, myread, myclose);
-    //has_entries = archive_file_count(archiv) > 0; reports only read entries ...
-    while (archive_read_next_header(archiv, &entry) == ARCHIVE_OK) {
-        has_entries = true;
-        break;  // finding one entry is sufficent for testing
-        //archive_read_data_skip(archiv);
+    int ret = archive_read_open2(archiv, reinterpret_cast<void*>(this), c_read_open, c_read, c_read_skip, c_read_close);
+    if (ret == ARCHIVE_OK) {
+        struct archive_entry *entry;
+        while (archive_read_next_header(archiv, &entry) == ARCHIVE_OK) {
+            has_entries = true;
+            break;  // finding one entry is sufficent for testing
+        }
+        archive_read_close(archiv);
     }
-    archive_read_close(archiv);
     archive_read_free(archiv);
-
+    //std::cout << "Archiv::canRead " << std::boolalpha << has_entries << std::endl;
     return has_entries;
+}
+
+
+std::vector<std::string>
+Archiv::getReadFormats()
+{
+    return m_readFormats;
+}
+
+void
+Archiv::addWriteFormat(int fmt)
+{
+    m_writeFormats.push_back(fmt);
+}
+
+void
+Archiv::setError(struct archive *archiv, const Glib::Error& err, const char* where)
+{
+    std::string errWhat = err.what();
+    //auto path = m_file->get_path(); path already included
+    auto msg = psc::fmt::vformat(_("{} error {}"),
+                        psc::fmt::make_format_args(errWhat, where));
+    archive_set_error(archiv, ARCHIVE_FATAL,  msg.c_str());
+}
+
+
+int
+Archiv::cc_readopen(struct archive *archiv)
+{
+    try {
+        m_fileInputstream = m_file->read();
+        return ARCHIVE_OK;
+    }
+    catch (const Glib::Error& err) {    // the expected insight what went wrong is not happening, but at least we get the localisation
+        setError(archiv, err, _("open"));
+    }
+    return ARCHIVE_FATAL;
+}
+
+la_ssize_t
+Archiv::cc_read(struct archive *archiv, const void **ebuff)
+{
+    try {
+        if (!buff) {
+            buff = std::make_unique<BUFFER_ARRAY>();    // use ptr for not overloading stack
+        }
+        *ebuff = buff.get();
+        return m_fileInputstream->read(buff.get(), BUF_SIZE);
+    }
+    catch (const Glib::Error& err) {
+        setError(archiv, err, _("read"));
+    }
+    return ARCHIVE_FATAL;
+}
+
+la_ssize_t
+Archiv::cc_readskip(struct archive *archiv, off_t request)
+{
+    try {
+        return m_fileInputstream->skip(request);
+    }
+    catch (const Glib::Error& err) {
+        setError(archiv, err, _("skip"));
+    }
+    return ARCHIVE_FATAL;
+}
+
+int
+Archiv::cc_readclose()
+{
+    if (m_fileInputstream) {
+        try {
+            m_fileInputstream->close();
+        }
+        catch (...) {          // just don't complain
+        }
+        m_fileInputstream.reset();
+    }
+    return ARCHIVE_OK;
+}
+
+int
+Archiv::cc_writeopen(struct archive *archiv)
+{
+    try {
+        m_fileOutputstream = m_file->replace("", false, Gio::FileCreateFlags::FILE_CREATE_REPLACE_DESTINATION);
+        return ARCHIVE_OK;
+    }
+    catch (const Glib::Error& err) {    // the expected insight what went wrong is not happening, but at least we get the localisation
+        setError(archiv, err, _("open"));
+    }
+    return ARCHIVE_FATAL;
+}
+
+la_ssize_t
+Archiv::cc_write(struct archive *archiv, const void *buffer, size_t length)
+{
+    try {
+        return m_fileOutputstream->write(buffer, length);
+    }
+    catch (const Glib::Error& err) {
+        setError(archiv, err, _("write"));
+    }
+    return ARCHIVE_FATAL;
+}
+
+int
+Archiv::cc_writeclose(struct archive *archiv)
+{
+    if (m_fileOutputstream) {
+        try {
+            m_fileOutputstream->close();
+            return ARCHIVE_OK;
+        }
+        catch (const Glib::Error& err) {
+            if (archiv) {
+                setError(archiv, err, _("close"));
+            }
+        }
+        m_fileOutputstream.reset();
+    }
+    return ARCHIVE_FATAL;
+}
+
+int
+Archiv::cc_writefree(struct archive *archiv)
+{
+    return ARCHIVE_OK;
+}
+
+ArchivFileProvider::ArchivFileProvider(const Glib::RefPtr<Gio::File>& dir, bool useSubDirs)
+: m_dir{dir}
+, m_useSubDirs{useSubDirs}
+, m_entry{std::make_shared<ArchivEntry>()}
+{
+    m_workers.emplace_back(std::make_shared<ArchivDirWalker>(m_dir, this));
+}
+
+std::shared_ptr<ArchivEntry>
+ArchivFileProvider::getNextEntry()
+{
+    while (true) {
+        //std::cout << "ArchivFileProvider::getNextEntry " << m_workers.size()  << std::endl;
+        if (m_workers.begin() != m_workers.end()) {
+            auto worker = *(m_workers.rbegin());
+            auto activFile = worker->scanEntries();
+            if (!activFile) {
+                m_workers.pop_back();   // if worker has no more entries remove it
+                continue;
+            }
+            Gio::FileType fileType = activFile->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+            if (fileType == Gio::FileType::FILE_TYPE_DIRECTORY) {
+                // unsure how to pass directories to archive, here we just found on, it may or may no contain usable files
+                //   (but it seems we can live without if we don't want explicit permissions)
+                m_workers.emplace_back(std::make_shared<ArchivDirWalker>(activFile, this));
+                continue;               // and use the created entry
+            }
+            else {
+                m_activFile = activFile;
+                m_entry->setMode(AE_IFREG);
+                m_entry->setPath(m_dir->get_relative_path(m_activFile));
+                m_entry->setPermission(m_permission);
+                auto info = m_activFile->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+                m_entry->setSize(info->get_size());
+                return m_entry;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    return nullptr;
+}
+
+int
+ArchivFileProvider::writeContent(Archiv* archiv, struct archive* structarchiv, struct archive_entry *entry)
+{
+    std::unique_ptr<Archiv::BUFFER_ARRAY> buff = std::make_unique<Archiv::BUFFER_ARRAY>();    // use ptr for not overloading stack
+    Glib::RefPtr<Gio::FileInputStream> fileInputstream;
+    int ret = ARCHIVE_OK;
+    try {
+        fileInputstream = m_activFile->read();
+        while (true)  {
+            int len = fileInputstream->read(buff.get(), Archiv::BUF_SIZE);
+            if (len <= 0) {
+                break;
+            }
+            int ret = archive_write_data(structarchiv, buff.get(), len);
+            if (ret != ARCHIVE_OK) {
+                break;
+            }
+        }
+    }
+    catch (const Glib::Error& err) {
+        archiv->setError(structarchiv, err, _("read source"));
+        ret = ARCHIVE_FATAL;
+    }
+    if (fileInputstream) {
+        try {
+            fileInputstream->close();
+        }
+        catch (const Glib::Error& err) {    // fails most likely due to previous error, so ignore
+        }
+    }
+    return ret;
+}
+
+ArchivDirWalker::ArchivDirWalker(Glib::RefPtr<Gio::File> scanDir, ArchivFileProvider* provider)
+: m_scanDir{scanDir}
+, m_provider{provider}
+, m_entries{m_scanDir->enumerate_children("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE)}
+{
+}
+
+Glib::RefPtr<Gio::File>
+ArchivDirWalker::scanEntries()
+{
+    while (true) {
+        auto fileInfo = m_entries->next_file();
+        //std::cout << "ArchivFileProvider::scanEntries " << m_scanDir->get_path()
+        //          << " found " << (fileInfo ? fileInfo->get_name() : std::string("non")) << std::endl;
+        if (!fileInfo) {
+            break;
+        }
+        auto activFile = m_scanDir->get_child(fileInfo->get_name());
+        Gio::FileType fileType = activFile->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+        if (m_provider->useSubDirs() && fileType == Gio::FileType::FILE_TYPE_DIRECTORY) {
+            return activFile;
+        }
+        if (fileType == Gio::FileType::FILE_TYPE_REGULAR
+         && m_provider->isFilterEntry(activFile)) {
+            return activFile;
+        }
+    }
+    return Glib::RefPtr<Gio::File>();
 }
 

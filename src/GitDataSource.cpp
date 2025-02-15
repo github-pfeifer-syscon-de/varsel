@@ -62,7 +62,8 @@ GitDataSource::GitDataSource(const Glib::RefPtr<Gio::File>& dir, VarselApp* appl
 
 void
 GitDataSource::update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel)
+          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+        , ListListener* listListener)
 {
     try {
         auto treeNode = std::make_shared<GitTreeNode>("", 1);
