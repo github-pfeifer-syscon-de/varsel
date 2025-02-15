@@ -99,12 +99,13 @@ OpenEvent::getCompletionInfo()
 {
     std::string remain;
     remain.reserve(64);
-    for (auto& file : getFiles()) {
+    for (auto& file : m_context) {
         if (!remain.empty()) {
             remain += ", ";
         }
         remain += file->getFile()->get_path();
     }
+    m_context.clear();  // ensure no second complain
     return remain;
 }
 

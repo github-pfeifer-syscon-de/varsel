@@ -56,6 +56,12 @@ TestApp::on_activate()
 int
 TestApp::getResult()
 {
+
+    if (!m_workerStart
+     || !m_workerExcept) {
+        std::cout << "The activation has failed -> check for hanging instances of this process!" << std::endl;
+        return 9;
+    }
     if (m_workerStart->m_intermediate != WorkerStart::INTERM_VAL) {
         std::cout << "Start expected result " << WorkerStart::INTERM_VAL << " got " << m_workerStart->m_intermediate << std::endl;
         return 1;

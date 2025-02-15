@@ -78,7 +78,10 @@ public:
     {
         m_active = false;
     }
-
+    bool isActive()
+    {
+        return m_active;
+    }
 private:
 
     /** @brief  Protects the deque, calls the provided function and notifies the presence of new data
@@ -111,11 +114,12 @@ public:
         m_notify.connect(
                 sigc::mem_fun(*this, &ThreadWorker::emited));
     }
-    ThreadWorker(const ThreadWorker& orig) = default;
+    explicit ThreadWorker(const ThreadWorker& orig) = delete;
     virtual ~ThreadWorker() = default;
 
     void execute()
     {
+        std::cout << "ThreadWorker::execute" << std::endl;
         m_future = std::async(std::launch::async, &ThreadWorker::run, this);
     }
     T run()
@@ -129,28 +133,34 @@ public:
             m_eptr = std::current_exception();
         }
         //std::cout << "Thread::run done" << std::endl;
-        m_queue.finish();
         // ensure sequential execution for last step
-        std::unique_lock<std::mutex> lock{ m_mutex };
-        emit();
-        lock.unlock();
+        emit(true);
         return t;
     }
-    void emit()
+    void emit(bool last = false)
     {
+        // ensure the last notification will be delivered
+        //   since we run into trouble if dispatched will be used while active
+        //   or we leave out the final action have to go thru this
+        if (last) {
+            while (m_pending) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            m_queue.finish();
+        }
         if (!m_pending) {
             m_pending = true;
-            m_notify.emit();    // ensure activation (in any case)
+            m_notify.emit();
         }
     }
-    void notify(I i) {
+    void notify(I i)
+    {
         //std::cout << "ThreadWorker::notify " << std::boolalpha << m_queue.isActive() << std::endl;
         m_queue.emplace_back(i);
         emit();
     }
     void emited()
     {
-        std::unique_lock<std::mutex> lock{ m_mutex };
         std::vector<I> out;
         bool active = m_queue.pop_front(out);
         //std::cout << "ThreadWorker::emited active " << std::boolalpha << active << std::endl;
@@ -162,7 +172,6 @@ public:
             m_completed = true;
             completed();
         }
-        lock.unlock();
         //std::cout << "ThreadWorker::emited done " << std::boolalpha << m_queue.isActive() << std::endl;
     }
     void completed()
@@ -170,9 +179,11 @@ public:
         m_t = m_future.get();
         done();
     }
-    // this function propagates the exception
-    //   that has been thrown when executing doInBackground
-    //   or the result
+    /**
+     * this function propagates the exception
+     *   that may have been thrown when executing doInBackground
+     * or the result
+     */
     T getResult()
     {
         if (m_eptr) {
@@ -193,6 +204,5 @@ private:
     std::exception_ptr m_eptr;
     volatile bool m_completed{false};
     volatile bool m_pending{false};
-    std::mutex m_mutex;
 };
 

@@ -54,20 +54,20 @@ ArchivTest::ArchivTest()
 bool
 ArchivTest::readTest()
 {
-    auto home = Glib::get_home_dir();
-    auto homeDir = Gio::File::create_for_path(home);
-    auto file = homeDir->get_child("Downloads/Spring4MVCAngularJSExample.zip");
-    Archiv archive(file);
-    try {
-        archive.read(this);
-        for (auto fmt : archive.getReadFormats()) {
-            std::cout << "Fmt " << fmt << std::endl;
-        }
-    }
-    catch (const ArchivException& exc) {
-        std::cout << exc.what() << std::endl;
-        return false;
-    }
+//    auto home = Glib::get_home_dir();
+//    auto homeDir = Gio::File::create_for_path(home);
+//    auto file = homeDir->get_child("");   // if you want to check readability for a format put it here
+//    Archiv archive(file);
+//    try {
+//        archive.read(this);
+//        for (auto fmt : archive.getReadFormats()) {
+//            std::cout << "Fmt " << fmt << std::endl;
+//        }
+//    }
+//    catch (const ArchivException& exc) {
+//        std::cout << exc.what() << std::endl;
+//        return false;
+//    }
 
     return true;
 }
@@ -96,6 +96,7 @@ ArchivTest::readWrite()
     catch (const ArchivException& exc) {
         std::cout << exc.what() << std::endl;
     }
+    file->remove();         // cleanup
     if (testArchivProvider.m_createEntries != m_entries
      || m_entries != m_final) {
         std::cout << "Created " << testArchivProvider.m_createEntries
