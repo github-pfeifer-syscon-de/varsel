@@ -32,6 +32,7 @@
 VarselApp::VarselApp(int argc, char **argv)
 : Gtk::Application(argc, argv, "de.pfeifer_syscon.varsel", Gio::ApplicationFlags::APPLICATION_HANDLES_OPEN)
 , m_exec{argv[0]}
+, m_log{psc::log::Log::create("varsel")}
 {
 }
 
@@ -201,11 +202,11 @@ VarselApp::on_startup()
             set_menubar(menuBar);
         }
         else {
-            std::cerr << "Cound not find/cast menubar!" << std::endl;
+            psc::log::Log::logAdd(psc::log::Level::Error, "Cound not find/cast menubar!" );
         }
     }
     catch (const Glib::FileError& ex) {
-        std::cerr << "Unable to load menubar: " << ex.what() << std::endl;
+        psc::log::Log::logAdd(psc::log::Level::Error, std::format("Unable to load app-menu {}", ex.what()));
     }
 }
 

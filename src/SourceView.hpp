@@ -20,11 +20,13 @@
 
 #include <gtksourceview/gtksource.h>
 #include <gtkmm.h>
-#include <list>
+#include <vector>
+#include <memory>
 
 #include "EventBus.hpp"
 
 class VarselApp;
+class SourceView;
 
 class SourceFile
 {
@@ -32,16 +34,28 @@ public:
     SourceFile(VarselApp* application);
     virtual ~SourceFile() = default;
 
-    Gtk::Widget* load(std::shared_ptr<EventItem>& eventItem);
+    Gtk::Widget* buildSourceView(SourceView* win, std::shared_ptr<EventItem>& eventItem);
     void applyStyle(const std::string& style, const std::string& fontDesc);
     Glib::ustring getLabel();
     static GtkSourceLanguage* getSourceLanguage(const std::shared_ptr<EventItem>& item);
+    void saveAs(SourceView* win);
+    void save(SourceView *win);
+    void load(SourceView *win);
+    bool checkSave(SourceView* win);
 
+    static constexpr size_t BUF_SIZE{8u*1024u};
+
+protected:
+    void save(SourceView* win, const Glib::RefPtr<Gio::File>& file);
+    void load(SourceView* win, const Glib::RefPtr<Gio::File>& file);
+    Glib::RefPtr<Gio::File> selectFile(SourceView* win, bool save);
+
+    Glib::ustring getExtension();
 private:
     VarselApp* m_application;
     GtkSourceBuffer* m_buffer{nullptr};
     GtkSourceView* m_sourceView{nullptr};
-    Glib::ustring m_label;
+    std::shared_ptr<EventItem> m_eventItem;
 };
 
 class SourceView
@@ -53,12 +67,28 @@ public:
     virtual ~SourceView() = default;
 
     void applyStyle(const std::string& style, const std::string& fontDesc);
+    void save(const Glib::VariantBase& val);
+    void saveAs(const Glib::VariantBase& val);
+    void load(const Glib::VariantBase& val);
+    void close(const Glib::VariantBase& val);
+    void quit(const Glib::VariantBase& val);
+    int showMessage(const Glib::ustring& msg, Gtk::MessageType msgType = Gtk::MessageType::MESSAGE_WARNING);
+    void changeLabel(SourceFile* sourceFile);
+
+    static constexpr auto LOAD_ACTION = "load";
+    static constexpr auto SAVE_ACTION = "save";
+    static constexpr auto SAVEAS_ACTION = "saveAs";
+    static constexpr auto CLOSE_ACTION = "close";
+    static constexpr auto QUIT_ACTION = "quit";
+    static constexpr auto ACTION_GROUP = "srcView";
+
 protected:
+    void createMenu(Gtk::MenuBar* menuBar);
 
 private:
     VarselApp* m_application;
     Gtk::Notebook* m_notebook{nullptr};
-    std::list<SourceFile> m_files;
+    std::vector<std::shared_ptr<SourceFile>> m_files;
 };
 
 

@@ -21,7 +21,7 @@
 
 #include "GitRepository.hpp"
 #include "GitDataSource.hpp"
-
+#include "FileDataSource.hpp"
 
 
 std::shared_ptr<GitListColumns> GitTreeNode::m_gitListColumns;
@@ -75,23 +75,22 @@ GitDataSource::update(
             auto row = *list;
             std::string name;
             if (!iter->getWorkdir().getNewPath().empty()) {
-                if (!iter->getWorkdir().getOldPath().empty()) {
-                    name += iter->getWorkdir().getOldPath() + " -> ";
-                }
+                //if (!iter->getWorkdir().getOldPath().empty()) {
+                //    name += iter->getWorkdir().getOldPath() + " -> ";
+                //}
                 name = iter->getWorkdir().getNewPath();
             }
             else {
                 name = iter->getWorkdir().getOldPath();
             }
             auto gitListColumns = std::dynamic_pointer_cast<GitListColumns>(getListColumns());
-            row.set_value<Glib::ustring>(gitListColumns->m_name, name);
             row.set_value<psc::git::FileStatus>(gitListColumns->m_workdirState, iter->getWorkdir().getStatus());
             row.set_value<psc::git::FileStatus>(gitListColumns->m_indexState, iter->getIndex().getStatus());
 
             auto file = getFileName(name);
             if (file->query_exists()) {
-                auto info = file->query_info("*");
-                row.set_value(gitListColumns->m_size, info->get_size());
+                auto info = file->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
+                FileDataSource::setFileValues(row, info, gitListColumns);
             }
         }
     }

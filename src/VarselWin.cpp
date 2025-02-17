@@ -29,40 +29,6 @@
 #include "VarselList.hpp"
 #include "PrefDialog.hpp"
 
-/*
- * slightly customized file chooser
- */
-class VarselFileChooser
-: public Gtk::FileChooserDialog {
-public:
-    VarselFileChooser(Gtk::Window *win, bool save)
-    : Gtk::FileChooserDialog(*win
-                            , save
-                            ? _("Save File")
-                            : _("Open File")
-                            , save
-                            ? Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SAVE
-                            : Gtk::FileChooserAction::FILE_CHOOSER_ACTION_OPEN
-                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT)
-    {
-        add_button(_("_Cancel"), Gtk::RESPONSE_CANCEL);
-        add_button(save
-                    ? _("_Save")
-                    : _("_Open"), Gtk::RESPONSE_ACCEPT);
-
-        Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
-        filter->set_name("Text");
-        //filter->add_mime_type("text/plain");
-        filter->add_pattern("*.txt");
-        set_filter(filter);
-    }
-
-    virtual ~VarselFileChooser() = default;
-protected:
-private:
-};
-
-
 static std::string
 getWhere(GtkWidget* widget)
 {
@@ -89,6 +55,13 @@ getWhere(GtkWidget* widget)
         std::cout << "no path from terinal use in .bashrc \". /etc/profile.d/vte.sh\"" << std::endl;
     }
     return strUri;
+}
+
+static void
+terminalExited(VteTerminal* self, gint status, gpointer user_data)
+{
+    auto varselView = static_cast<VarselView*>(user_data);
+    varselView->close();
 }
 
 static bool
@@ -174,21 +147,19 @@ terminalSpawnAsyncCallback(
                     , "key_release_event"
                     , GCallback(&(terminalKeyEvent))
                     , user_data);
+    g_signal_connect(GTK_WIDGET(terminal)
+                    , "child-exited"
+                    , GCallback(&(terminalExited))
+                    , user_data);
 }
 
 TabLabel::TabLabel(const Glib::ustring& label, VarselView* varselView)
 : EventBox::EventBox()
-//: m_varselView{varselView}
 {
     auto button = Gtk::make_managed<Gtk::Button>();
     auto image = Gtk::make_managed<Gtk::Image>(Gtk::Stock::CLOSE, Gtk::ICON_SIZE_MENU);
     button->set_image(*image);
     button->set_relief(Gtk::ReliefStyle::RELIEF_NONE);
-
-    //Gtk::RcStyle rcStyle = new RcStyle ();
-    //rcStyle.Xthickness = 0;
-    //rcStyle.Ythickness = 0;
-    //button.ModifyStyle (rcStyle);
 
     button->set_focus_on_click(false);
     button->signal_clicked().connect(
@@ -207,13 +178,6 @@ TabLabel::TabLabel(const Glib::ustring& label, VarselView* varselView)
     show_all();
 }
 
-//void
-//TabLabel::close()
-//{
-//    m_varselView->close();
-//}
-//
-
 
 VarselView::VarselView(const std::string& path, VarselWin* varselWin)
 : m_uri{path}
@@ -224,6 +188,22 @@ VarselView::VarselView(const std::string& path, VarselWin* varselWin)
     m_scrollView->set_propagate_natural_width(true);
     m_vte_terminal = VTE_TERMINAL(vte_terminal_new());
     vte_terminal_set_size(m_vte_terminal, 120, 40);
+
+    /* see @sakura Figure out if we have rgba capabilities. Without this transparency won't work as expected */
+//	GtkCssProvider* provider = gtk_css_provider_new();
+//	GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(sakura.fade_window));
+//	gtk_css_provider_load_from_data(provider, FADE_WINDOW_CSS, -1, NULL);
+//	gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER (provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+//	g_object_unref(provider);
+
+//	GdkScreen* screen = gtk_widget_get_screen (GTK_WIDGET(m_vte_terminal));
+//	GdkVisual* visual = gdk_screen_get_rgba_visual(screen);
+//    std::cout << "Is composite " << std::boolalpha << gdk_screen_is_composited(screen) << std::endl;
+//    std::cout << "visual " << std::hex << visual << std::endl;
+//	if (visual != NULL && gdk_screen_is_composited(screen)) {
+//		gtk_widget_set_visual(GTK_WIDGET(m_vte_terminal), visual);
+//	}
+
     m_defaultFont = pango_font_description_copy(vte_terminal_get_font(m_vte_terminal));
     gtk_container_add(GTK_CONTAINER(m_scrollView->gobj()), GTK_WIDGET(m_vte_terminal));
 
@@ -231,7 +211,6 @@ VarselView::VarselView(const std::string& path, VarselWin* varselWin)
     if (!shell) {
         shell = "/bin/sh";
     }
-    apply_font(m_varselWin->getFont());
     std::array<const char*,2> argv;
     argv[0] = shell;
     argv[1] = nullptr;
@@ -257,8 +236,8 @@ VarselView::apply_dir()
 {
     auto path = getPath();
     if (!path.empty()) {
-        chdir(path.c_str());    // this eliminates the pasting
-        // nice example howto paste command into terminal
+        chdir(path.c_str());
+        // example howto paste command into terminal
         //std::string cd = std::string("cd ") + file->get_path() + "\n";
         //vte_terminal_feed_child(m_vte_terminal, cd.c_str(), cd.length());
 
@@ -274,15 +253,18 @@ VarselView::showFile(const std::string& uri)
 void
 VarselView::openTerm(const std::string& uri)
 {
-    std::cout << "VarselView::openTerm " << uri << std::endl;
+    //std::cout << "VarselView::openTerm " << uri << std::endl;
     m_varselWin->openTerm(uri);
 }
 
 void
 VarselView::close()
 {
-    // need to close term???
-    m_varselWin->close(this);
+    // as it seems the closing logic is done by default
+    if (!m_closing) {   // avoid double activation on gui click (as event is delivered )
+        m_closing = true;
+        m_varselWin->close(this);
+    }
 }
 
 Gtk::Widget*
@@ -305,6 +287,10 @@ VarselView::apply_font(const Glib::ustring& font)
     else if (m_defaultFont) {
         vte_terminal_set_font(m_vte_terminal, m_defaultFont);
     }
+
+    Gdk::RGBA backgrd;
+    backgrd.set_grey(0.1, VarselWin::TERMOPACITY);
+    vte_terminal_set_color_background(m_vte_terminal, backgrd.gobj());
 }
 
 Gtk::ScrolledWindow*
@@ -365,25 +351,19 @@ VarselView::getName()
 VarselWin::VarselWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, VarselApp* varselApp)
 : Gtk::ApplicationWindow(cobject)       //Calls the base class constructor
 , m_application{varselApp}
-, m_log{psc::log::Log::create("varsel")}
 {
     set_title(_("Varsel"));
     auto pix = Gdk::Pixbuf::create_from_resource(varselApp->get_resource_base_path() + "/varsel.png");
     set_icon(pix);
-
-    //auto grid = Gtk::make_managed<Gtk::Grid>();
-    //grid->set_vexpand(true);
-    //grid->set_hexpand(true);
-    //add(*grid);
+	/* see @sakura Main window opacity must be set. Otherwise vte widget will remain opaque */
+    auto screen = get_screen();
+    auto visual = screen->get_rgba_visual();
+	if (visual && screen->is_composited()) {
+        gtk_widget_set_visual(GTK_WIDGET(gobj()), visual->gobj());
+	}
+    set_opacity(TERMOPACITY);
 
     refBuilder->get_widget("notebook", m_notebook);
-    //auto scrollView = Gtk::make_managed<Gtk::ScrolledWindow>();
-    //scrollView->set_propagate_natural_height(true);
-    //scrollView->set_propagate_natural_width(true);
-    //grid->attach(*scrollView, 0,0, 1,1);
-    //add(*scrollView);   // using this directly ensures scaling terminal with window
-
-
     auto config = getKeyFile();
     for (size_t i = 1; i <= MAX_PATHS; ++i) {
         auto key = Glib::ustring::sprintf(FMT_PATH, CONFIG_PATH, i);
@@ -397,7 +377,6 @@ VarselWin::VarselWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& 
     m_application->getEventBus()->addListener(listListener);
 
     activate_actions();
-    //std::cout << "VarselWin::VarselWin" << std::endl;
     show_all_children();
 }
 
@@ -450,6 +429,7 @@ VarselWin::openTerm(const std::string& uri)
     //std::cout << "openTerm "
     //          << " uri \"" << uri << "\"" << std::endl;
     auto view = std::make_shared<VarselView>(uri, this);
+    view->apply_font(getFont());
     auto widget = view->getScroll();
     m_notebook->append_page(*widget, *view->getLabel());
     widget->show_all();
@@ -478,9 +458,9 @@ VarselWin::activate_actions()
 				delete prefDialog;  // as this is a toplevel component shoud destroy -> works
 			}
 			catch (const Glib::Error &ex) {
-                show_error(psc::fmt::vformat(
+                showMessage(psc::fmt::vformat(
                         _("Unable to load {} error {}"),
-                          psc::fmt::make_format_args("pref-dlg", ex)));
+                          psc::fmt::make_format_args("pref-dlg", ex)), Gtk::MessageType::MESSAGE_WARNING);
 			}
 		});
     add_action(pref_action);
@@ -549,7 +529,7 @@ VarselWin::on_hide()
         getKeyFile()->setString(CONFIG_GRP, key, uri);
     }
     m_application->save_config();
-    Gtk::Window::on_hide();
+    Gtk::ApplicationWindow::on_hide();
 //    for (auto i = m_lists.begin(); i != m_lists.end(); ) {
 //        auto ref = *i;
 //        //std::cout << std::hex << "Hiding " << ref << std::dec << std::endl;
@@ -558,13 +538,4 @@ VarselWin::on_hide()
 //        delete ref;
 //        i = m_lists.erase(i);
 //    }
-}
-
-void
-VarselWin::show_error(const Glib::ustring& msg, Gtk::MessageType type)
-{
-    // this should automatically give some context
-    Gtk::MessageDialog messagedialog(*this, msg, FALSE, type);
-    messagedialog.run();
-    messagedialog.hide();
 }

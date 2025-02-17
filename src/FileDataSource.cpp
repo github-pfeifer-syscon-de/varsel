@@ -21,16 +21,6 @@
 #include "FileDataSource.hpp"
 #include "VarselApp.hpp"
 
-
-//FileDataItem::FileDataItem(const Glib::RefPtr<Gio::FileInfo>& fileInfo)
-//: DataItem(fileInfo->get_display_name())
-//, m_fileInfo{fileInfo}
-//{
-//
-//}
-//
-
-
 FileDataSource::FileDataSource(const Glib::RefPtr<Gio::File>& file, VarselApp* application)
 : DataSource::DataSource(application)
 , m_file{file}
@@ -53,7 +43,7 @@ FileDataSource::update(
         enumerat = m_file->enumerate_children(
               cancellable
             , "*"
-            , Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+            , Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
         while (true) {   //enumerat->has_pending()
             auto fileInfo = enumerat->next_file();
             if (fileInfo) {
@@ -64,18 +54,9 @@ FileDataSource::update(
                 else if (fileInfo->get_file_type() == Gio::FileType::FILE_TYPE_REGULAR) {
                     auto iter = treeItem->appendList();
                     auto row = *iter;
-                    auto name = fileInfo->get_display_name();
                     //std::cout << "file name " << name << " size " << fileInfo->get_size() << std::endl;
                     auto listColumns = getListColumns();
-                    row.set_value<Glib::ustring>(listColumns->m_name, name);
-                    row.set_value(listColumns->m_size, fileInfo->get_size());
-                    //row.set_value(listColumns->m_type, "File");
-                    row.set_value(listColumns->m_mode, fileInfo->get_attribute_uint32("unix::mode"));
-                    Glib::ustring user{fileInfo->get_attribute_string("owner::user")};      // numeric = get_attribute_uint32("unix::uid")};
-                    row.set_value(listColumns->m_user, user);
-                    Glib::ustring group{fileInfo->get_attribute_string("owner::group")};    // numeric = get_attribute_uint32("unix::gid");
-                    row.set_value(listColumns->m_group, group);
-                    row.set_value(listColumns->m_fileInfo, fileInfo);
+                    setFileValues(row, fileInfo, listColumns);
                 }
             }
             else {
@@ -90,6 +71,27 @@ FileDataSource::update(
      && !enumerat->is_closed()) {
         enumerat->close();
     }
+}
+
+void
+FileDataSource::setFileValues(
+      Gtk::TreeRow& row
+    , const Glib::RefPtr<Gio::FileInfo>& fileInfo
+    , const std::shared_ptr<ListColumns>& listColumns)
+{
+    row.set_value<Glib::ustring>(listColumns->m_name, fileInfo->get_display_name());
+    row.set_value(listColumns->m_size, fileInfo->get_size());
+    //row.set_value(listColumns->m_type, "File");
+    row.set_value(listColumns->m_mode, fileInfo->get_attribute_uint32("unix::mode"));
+    Glib::ustring user{fileInfo->get_attribute_string("owner::user")};      // numeric = get_attribute_uint32("unix::uid")};
+    row.set_value(listColumns->m_user, user);
+    Glib::ustring group{fileInfo->get_attribute_string("owner::group")};    // numeric = get_attribute_uint32("unix::gid");
+    row.set_value(listColumns->m_group, group);
+    Glib::DateTime modified = fileInfo->get_modification_date_time();
+    row.set_value(listColumns->m_modified, modified);
+
+    row.set_value(listColumns->m_fileInfo, fileInfo);
+
 }
 
 const char*

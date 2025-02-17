@@ -134,7 +134,6 @@ VarselList::updateList()
         }
     }
     else {
-        std::cout << "VarselList::updateList no selection" << std::endl;
         auto model = Gtk::ListStore::create(*m_data->getListColumns());
         m_listView->set_model(model);
     }
@@ -239,10 +238,10 @@ VarselList::show(
         varselList->show_all();
     }
     catch (const Glib::Error &ex) {
-        varselWin->show_error(
+        varselWin->showMessage(
             psc::fmt::vformat(
                   _("Error {} loading {}")
-                , psc::fmt::make_format_args(ex, "varselWin")));
+                , psc::fmt::make_format_args(ex, "varselWin")), Gtk::MessageType::MESSAGE_WARNING);
     }
     return varselList;
 }

@@ -38,6 +38,9 @@ public:
     const char* getConfigGroup() override;
     Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
 
+    static void setFileValues(Gtk::TreeRow& row, const Glib::RefPtr<Gio::FileInfo>& fileInfo, const std::shared_ptr<ListColumns>& listColumns);
+protected:
+
 private:
     Glib::RefPtr<Gio::File> m_file;
 };

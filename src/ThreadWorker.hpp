@@ -26,7 +26,8 @@
 #include <vector>
 
 
-
+// this queue is intended to be used to
+//   return data from a thread
 template< typename T >
 class ConcurrentQueue
 {
@@ -119,15 +120,14 @@ public:
 
     void execute()
     {
-        std::cout << "ThreadWorker::execute" << std::endl;
+        //std::cout << "ThreadWorker::execute" << std::endl;
         m_future = std::async(std::launch::async, &ThreadWorker::run, this);
     }
-    T run()
+    void run()
     {
-        T t;
         try {
             //std::cout << "ThreadWorker::run " << this << std::endl;
-            t = doInBackground();
+            m_t = doInBackground();
         }
         catch (...) {
             m_eptr = std::current_exception();
@@ -135,12 +135,11 @@ public:
         //std::cout << "Thread::run done" << std::endl;
         // ensure sequential execution for last step
         emit(true);
-        return t;
+        return;
     }
     void emit(bool last = false)
     {
-        // ensure the last notification will be delivered
-        //   since we run into trouble if dispatched will be used while active
+        // since we run into trouble if dispatched will be used while active
         //   or we leave out the final action have to go thru this
         if (last) {
             while (m_pending) {
@@ -167,16 +166,16 @@ public:
         if (!out.empty()) {
             process(out);
         }
-        m_pending = false;
         if (!active && !m_completed) {
             m_completed = true;
             completed();
         }
+        m_pending = false;
         //std::cout << "ThreadWorker::emited done " << std::boolalpha << m_queue.isActive() << std::endl;
     }
     void completed()
     {
-        m_t = m_future.get();
+        m_future.get();
         done();
     }
     /**
@@ -199,7 +198,7 @@ protected:
 private:
     ConcurrentQueue<I> m_queue;
     Glib::Dispatcher m_notify;
-    std::future<T> m_future;
+    std::future<void> m_future;
     T m_t;
     std::exception_ptr m_eptr;
     volatile bool m_completed{false};

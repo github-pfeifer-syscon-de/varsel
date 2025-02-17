@@ -79,6 +79,27 @@ public:
     }
 };
 
+class DateConverter
+: public psc::ui::CustomConverter<Glib::DateTime>
+{
+public:
+    DateConverter(Gtk::TreeModelColumn<Glib::DateTime>& col)
+    : psc::ui::CustomConverter<Glib::DateTime>(col)
+    {
+    }
+    virtual ~DateConverter() = default;
+
+    void convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter) override
+    {
+        Glib::DateTime date;
+        iter->get_value(m_col.index(), date);
+        Glib::ustring dateText = date.format("%x %X");
+        auto textRend = static_cast<Gtk::CellRendererText*>(rend);
+        textRend->property_text() = dateText;
+    }
+};
+
+
 class ListColumns
 : public psc::ui::ColumnRecord
 {
@@ -89,6 +110,8 @@ public:
     Gtk::TreeModelColumn<uint32_t> m_mode;
     Gtk::TreeModelColumn<Glib::ustring> m_user;
     Gtk::TreeModelColumn<Glib::ustring> m_group;
+    Gtk::TreeModelColumn<Glib::DateTime> m_modified;
+
     Gtk::TreeModelColumn<Glib::RefPtr<Gio::FileInfo>> m_fileInfo;
     ListColumns()
     {
@@ -96,10 +119,12 @@ public:
         auto sizeConverter = std::make_shared<SizeConverter>(m_size);
         add<goffset>(_("Size"), sizeConverter, 1.0f);
         add(_("Type"), m_type, 1.0f);
-        auto permConverter =  std::make_shared<PermConverter>(m_mode);
+        auto permConverter = std::make_shared<PermConverter>(m_mode);
         add<uint32_t>(_("Mode"), permConverter, 1.0f);
         add(_("User"), m_user);
         add(_("Group"), m_group);
+        auto modifiedDate = std::make_shared<DateConverter>(m_modified);
+        add<Glib::DateTime>(_("Modified"), modifiedDate);
 
         Gtk::TreeModel::ColumnRecord::add(m_fileInfo);
     }

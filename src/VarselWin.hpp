@@ -57,6 +57,7 @@ private:
     Gtk::ScrolledWindow* m_scrollView;
     VteTerminal* m_vte_terminal;
     PangoFontDescription* m_defaultFont{nullptr};
+    bool m_closing{false};
 };
 
 
@@ -83,7 +84,6 @@ public:
     virtual ~VarselWin() = default;
 
     void on_hide() override;
-    void show_error(const Glib::ustring& msg, Gtk::MessageType type = Gtk::MessageType::MESSAGE_WARNING);
     void showFile(const std::string& uri);
     void showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files);
     void checkAfterSend(const std::shared_ptr<BusEvent>& event) override;
@@ -94,20 +94,20 @@ public:
     void apply_font(const std::string& font);
     void close(VarselView* view);
     std::shared_ptr<KeyConfig> getKeyFile();
+    void showMessage(const Glib::ustring& msg, Gtk::MessageType msgType = Gtk::MessageType::MESSAGE_INFO);
 
     static constexpr auto MAX_PATHS = 20u;
     static constexpr auto FMT_PATH = "%s%02d";
     static constexpr auto CONFIG_GRP = "varsel";
     static constexpr auto CONFIG_PATH = "path";
+    static constexpr auto TERMOPACITY = 0.9;
 protected:
-    void showMessage(const Glib::ustring& msg, Gtk::MessageType msgType = Gtk::MessageType::MESSAGE_INFO);
 
 private:
     void activate_actions();
 
     Gtk::Notebook* m_notebook;
     VarselApp* m_application;
-    std::shared_ptr<psc::log::Log> m_log;
     std::list<std::shared_ptr<VarselView>> m_views;
 };
 

@@ -21,6 +21,7 @@
 #include <gtkmm.h>
 #include <memory>
 #include <KeyConfig.hpp>
+#include <Log.hpp>
 
 #include "VarselWin.hpp"
 #include "SourceView.hpp"
@@ -57,5 +58,6 @@ private:
     void on_action_about();
     void on_action_help();
     std::shared_ptr<EventBus> m_eventBus;
+    std::shared_ptr<psc::log::Log> m_log;
 };
 
