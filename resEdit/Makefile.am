@@ -7,7 +7,7 @@ GLIB_COMPILE_RESOURCES = $(shell $(PKGCONFIG) --variable=glib_compile_resources 
 GLIB_COMPILE_SCHEMAS = $(shell $(PKGCONFIG) --variable=glib_compile_schemas gio-2.0)
 
 VARSEL_RESOURCE_XML=varsel.gresources.xml
-RESOURCE_C=../src/resources.c
+RESOURCE_C=../srcEdit/resources.c
 VARSEL_RESOURCES=$(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=. --generate-dependencies $(VARSEL_RESOURCE_XML))
 
 all:$(RESOURCE_C)

@@ -28,7 +28,7 @@ class FileDataSource
 : public DataSource
 {
 public:
-    FileDataSource(const Glib::RefPtr<Gio::File>& file, VarselApp* application);
+    FileDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application);
     explicit FileDataSource(const FileDataSource& orig) = delete;
     virtual ~FileDataSource() = default;
 

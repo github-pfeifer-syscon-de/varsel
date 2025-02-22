@@ -57,7 +57,7 @@ class ArchiveDataSource
 , public ArchivListener
 {
 public:
-    ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, VarselApp* application);
+    ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application);
     explicit ArchiveDataSource(const ArchiveDataSource& orig) = delete;
     virtual ~ArchiveDataSource() = default;
 

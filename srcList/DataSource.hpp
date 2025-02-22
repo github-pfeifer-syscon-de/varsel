@@ -26,6 +26,7 @@
 #include "EventBus.hpp"
 
 class TreeNodeModel;
+class ListApp;
 
 class SizeConverter
 : public psc::ui::CustomConverter<goffset>
@@ -281,13 +282,13 @@ private:
 };
 
 using pDataAction = std::shared_ptr<DataAction>;
-class VarselApp;
+class ListApp;
 
 class OpenDataAction
 : public DataAction
 {
 public:
-    OpenDataAction(VarselApp* application);
+    OpenDataAction(ListApp* application);
     virtual ~OpenDataAction() = default;
 
     bool isAvail() override;
@@ -297,16 +298,15 @@ public:
 protected:
     std::shared_ptr<OpenEvent> m_openEvent;
 private:
-    VarselApp* m_application;
+    ListApp* m_application;
     EventNotifyContext* m_eventNotifyContext{nullptr};
 };
 
-class VarselApp;
 
 class DataSource
 {
 public:
-    DataSource(VarselApp* application);
+    DataSource(ListApp* application);
     explicit DataSource(const DataSource& orig) = delete;
     virtual ~DataSource() = default;
 
@@ -320,7 +320,7 @@ public:
     void addActions(std::vector<pDataAction>& actions);
 
     std::shared_ptr<TreeColumns> m_treeColumns;
-    VarselApp* m_application;
+    ListApp* m_application;
 protected:
 private:
 

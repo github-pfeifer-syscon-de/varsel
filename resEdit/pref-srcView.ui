@@ -2,11 +2,6 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.22"/>
-  <object class="GtkAdjustment" id="adjustmentTransparency">
-    <property name="upper">255</property>
-    <property name="step-increment">1</property>
-    <property name="page-increment">10</property>
-  </object>
   <object class="GtkDialog" id="PrefDialog">
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">Preferences</property>
@@ -27,35 +22,32 @@
           </packing>
         </child>
         <child>
-          <!-- n-columns=3 n-rows=4 -->
+          <!-- n-columns=3 n-rows=3 -->
           <object class="GtkGrid" id="grid">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="row-spacing">12</property>
             <property name="column-spacing">6</property>
             <child>
-              <object class="GtkLabel" id="defaultFontLabel">
+              <object class="GtkComboBoxText" id="sourceStyle">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Default:</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Source style:</property>
                 <property name="xalign">1</property>
               </object>
               <packing>
                 <property name="left-attach">0</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkCheckButton" id="defaultFont">
-                <property name="label" translatable="yes">Use default font</property>
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
-                <property name="draw-indicator">True</property>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">0</property>
+                <property name="top-attach">2</property>
               </packing>
             </child>
             <child>
@@ -85,56 +77,28 @@
               </packing>
             </child>
             <child>
-              <object class="GtkScale" id="transparency">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="adjustment">adjustmentTransparency</property>
-                <property name="round-digits">0</property>
-                <property name="digits">0</property>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">3</property>
-              </packing>
-            </child>
-            <child>
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Transparency:</property>
-                <property name="xalign">1</property>
+                <property name="label" translatable="yes">Default:</property>
               </object>
               <packing>
                 <property name="left-attach">0</property>
-                <property name="top-attach">3</property>
+                <property name="top-attach">0</property>
               </packing>
             </child>
             <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Background:</property>
-                <property name="xalign">1</property>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkColorButton" id="background">
+              <object class="GtkCheckButton" id="defaultFont">
+                <property name="label" translatable="yes">Use default font</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
-                <property name="title" translatable="yes">Terminal backround color</property>
+                <property name="receives-default">False</property>
+                <property name="draw-indicator">True</property>
               </object>
               <packing>
                 <property name="left-attach">1</property>
-                <property name="top-attach">2</property>
+                <property name="top-attach">0</property>
               </packing>
-            </child>
-            <child>
-              <placeholder/>
             </child>
             <child>
               <placeholder/>

@@ -20,43 +20,39 @@
 
 #include <gtkmm.h>
 #include <memory>
-#include <VarselConfig.hpp>
 #include <Log.hpp>
 
-#include "VarselWin.hpp"
 #include "EventBus.hpp"
 
+class VarselList;
 
 /*
  * get the application up and running
  *   about and help dialog
  */
-class VarselApp
+class ListApp
 : public Gtk::Application
 {
 public:
-    VarselApp(int arc, char **argv);
-    virtual ~VarselApp() = default;
+    ListApp(int arc, char **argv);
+    virtual ~ListApp() = default;
 
     void on_activate() override;
     void on_startup() override;
     void on_open(const Gio::Application::type_vec_files& files, const Glib::ustring& hint) override;
-    std::shared_ptr<VarselConfig> getKeyFile();
-    void save_config();
     std::shared_ptr<EventBus> getEventBus();
 protected:
-    VarselWin* createVarselWindow();
-    VarselWin* getOrCreateVarselWindow();
+    VarselList* createVarselWindow();
+    VarselList* getOrCreateVarselWindow();
 
 private:
-    VarselWin* m_varselWindow{nullptr};
+    VarselList* m_varselList{nullptr};
     std::string m_exec;
-    std::shared_ptr<VarselConfig> m_config;
     std::string get_file(const std::string& name);
+    std::shared_ptr<EventBus> m_eventBus;
     void on_action_quit();
     void on_action_about();
     void on_action_help();
-    std::shared_ptr<EventBus> m_eventBus;
     std::shared_ptr<psc::log::Log> m_log;
 };
 

@@ -18,6 +18,8 @@
 
 
 #include "EventBus.hpp"
+#include "ListFactory.hpp"
+#include "SourceFactory.hpp"
 
 EventItem::EventItem(Glib::RefPtr<Gio::File> file)
 : m_file{file}
@@ -111,6 +113,10 @@ OpenEvent::getCompletionInfo()
 
 EventBus::EventBus()
 {
+    auto listListener = std::make_shared<ListFactory>();
+    addListener(listListener);
+    auto sourceListener = std::make_shared<SourceFactory>();
+    addListener(sourceListener);
 }
 
 void

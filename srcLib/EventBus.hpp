@@ -94,6 +94,6 @@ public:
 protected:
 private:
     std::list<pEventListener> m_eventListner;
-    EventNotifyContext* m_eventNotifyContext;
+    //EventNotifyContext* m_eventNotifyContext;
 };
 

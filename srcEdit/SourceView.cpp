@@ -21,8 +21,8 @@
 #include <Log.hpp>
 
 #include "SourceView.hpp"
-#include "VarselApp.hpp"
-#include "PrefDialog.hpp"
+#include "EditApp.hpp"
+#include "PrefSourceView.hpp"
 
 /*
  * slightly customized file chooser
@@ -54,7 +54,7 @@ private:
 };
 
 
-SourceFile::SourceFile(VarselApp* application)
+SourceFile::SourceFile(EditApp* application)
 : m_application{application}
 {
 }
@@ -84,17 +84,24 @@ Glib::RefPtr<Gio::File>
 SourceFile::selectFile(SourceView* win, bool save)
 {
     VarselFileChooser fileChooser{win, save};
-    Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
-    auto fileInfo = m_eventItem->getFileInfo();
-    if (!fileInfo->get_content_type().empty()) {
-        filter->add_mime_type(fileInfo->get_content_type());
+    if (save) {     // only use filter on save-as
+        Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
+        auto fileInfo = m_eventItem->getFileInfo();
+        if (!fileInfo->get_content_type().empty()) {
+            filter->add_mime_type(fileInfo->get_content_type());
+        }
+        Glib::ustring ext = getExtension();
+        if (!ext.empty()) {
+            filter->add_pattern("*." + ext);
+        }
+        fileChooser.set_filter(filter);
+        fileChooser.set_file(m_eventItem->getFile());
     }
-    Glib::ustring ext = getExtension();
-    if (!ext.empty()) {
-        filter->add_pattern("*." + ext);
+    else {
+        if (m_eventItem && m_eventItem->getFile()) {       // if possible use directory
+            fileChooser.set_file(m_eventItem->getFile()->get_parent());
+        }
     }
-    fileChooser.set_filter(filter);
-    fileChooser.set_file(m_eventItem->getFile());
     int ret = fileChooser.run();
     if (ret == Gtk::ResponseType::RESPONSE_ACCEPT) {
         return fileChooser.get_file();
@@ -199,25 +206,30 @@ SourceFile::getExtension()
 }
 
 Gtk::Widget*
-SourceFile::buildSourceView(SourceView* win, std::shared_ptr<EventItem>& eventItem)
+SourceFile::buildSourceView(SourceView* win, const Glib::RefPtr<Gio::File>& file)
 {
-    m_eventItem = eventItem;
     auto scrollView = Gtk::make_managed<Gtk::ScrolledWindow>();
-    auto file = eventItem->getFile();
-    // no free langManager,srcLang
-    auto srcLang = getSourceLanguage(eventItem);
+    GtkSourceLanguage* srcLang{nullptr};
+    if (file) {
+        m_eventItem = std::make_shared<EventItem>(file);
+        // no free langManager,srcLang
+        srcLang = getSourceLanguage(m_eventItem);
+    }
     if (srcLang) {
         m_buffer = gtk_source_buffer_new_with_language(srcLang);
     }
     else {
         m_buffer = gtk_source_buffer_new(nullptr);
     }
+    if (file) {
+        load(win, file);
+    }
     gtk_source_buffer_set_highlight_syntax(m_buffer, true);
     m_sourceView = GTK_SOURCE_VIEW(gtk_source_view_new_with_buffer(m_buffer));
     gtk_source_view_set_show_line_numbers(m_sourceView, true);
     //gtk_source_view_set_show_line_marks(m_sourceView, true);
+    //m_defaultFont = pango_font_description_copy(gtk_source_view_get_font(m_sourceView));
 
-    load(win, file);
     gtk_container_add(GTK_CONTAINER(scrollView->gobj()), GTK_WIDGET(m_sourceView));
     return scrollView;
 }
@@ -246,19 +258,25 @@ SourceFile::applyStyle(const std::string& style, const std::string& fontDesc)
     if (scheme && !style.empty()) {
         gtk_source_buffer_set_style_scheme(m_buffer, scheme);
     }
+    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_sourceView));
+    if (m_provider) {   // remove previous style
+        gtk_style_context_remove_provider(context,
+                                 GTK_STYLE_PROVIDER(m_provider->gobj()));
+        m_provider.reset();
+    }
     if (!fontDesc.empty()) {
+        m_provider = Gtk::CssProvider::create();
         // does not work
         //auto context = gtk_widget_get_pango_context(GTK_WIDGET(m_sourceView));
         //pango_context_set_font_description(context, desc.gobj());
         Pango::FontDescription desc = Pango::FontDescription(fontDesc);
-        auto provider = Gtk::CssProvider::create();
         Glib::ustring size;
         if (desc.get_set_fields() & Pango::FontMask::FONT_MASK_SIZE) {
             size.reserve(16);
             size += std::to_string(static_cast<int>((float)desc.get_size() / 1024.0f));
             size += desc.get_size_is_absolute() ? "px" : "pt";
         }
-        auto css = Glib::ustring::sprintf("#cssView {\n"
+        Glib::ustring css = Glib::ustring::sprintf("#cssView {\n"
           "  font: %s \"%s\", Monospace;\n"
           "}", size, desc.get_family());
         //std::cout << "SourceFile::applyStyle"
@@ -270,81 +288,110 @@ SourceFile::applyStyle(const std::string& style, const std::string& fontDesc)
         //          << " wei " << desc.get_weight()
         //          << " sty " << desc.get_style()
         //          << " css " << css << std::endl;
-        provider->load_from_data(css);
+        m_provider->load_from_data(css);
         gtk_widget_set_name(GTK_WIDGET(m_sourceView), "cssView");
-        GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_sourceView));
         gtk_style_context_add_provider(context,
-                                 GTK_STYLE_PROVIDER(provider->gobj()),
+                                 GTK_STYLE_PROVIDER(m_provider->gobj()),
                                  GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-
-
     }
-
 }
 
 Glib::ustring
 SourceFile::getLabel()
 {
-    auto fileInfo = m_eventItem->getFileInfo();
-    return fileInfo->get_display_name();
+    if (m_eventItem) {
+        auto fileInfo = m_eventItem->getFileInfo();
+        return fileInfo->get_display_name();
+    }
+    return _("New");
 }
 
 
-SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, VarselApp* varselApp, const std::vector<std::shared_ptr<EventItem>>& matchingFiles)
-: Gtk::Window(cobject)
+SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, EditApp* varselApp)
+: Gtk::ApplicationWindow(cobject)
 , m_application{varselApp}
 {
     set_title(_("Source"));
     auto pix = Gdk::Pixbuf::create_from_resource(varselApp->get_resource_base_path() + "/varsel.png");
     set_icon(pix);
-
-    Gtk::MenuBar* menuBar;
-    refBuilder->get_widget("menuBar", menuBar);
-    createMenu(menuBar);
+    createActions();
     refBuilder->get_widget("notebook", m_notebook);
-    for (size_t n = 0; n < matchingFiles.size(); ++n) {
-        auto item = matchingFiles[n];
-        auto sourceFile = std::make_shared<SourceFile>(m_application);
-        auto widget = sourceFile->buildSourceView(this, item);
-        m_notebook->append_page(*widget, sourceFile->getLabel());
-        m_files.emplace_back(std::move(sourceFile));
-    }
-    auto settings = m_application->getKeyFile();
-    Glib::ustring fontDesc;
-    if (settings->hasKey(VarselWin::CONFIG_GRP, PrefDialog::DEFAULT_FONT)) {
-        if (!settings->getBoolean(VarselWin::CONFIG_GRP, PrefDialog::DEFAULT_FONT, true)
-         && settings->hasKey(VarselWin::CONFIG_GRP, PrefDialog::CONFIG_FONT)) {
-            fontDesc = settings->getString(VarselWin::CONFIG_GRP, PrefDialog::CONFIG_FONT);
-        }
-    }
-    Glib::ustring style;
-    if (settings->hasKey(VarselWin::CONFIG_GRP, PrefDialog::SOURCE_STYLE)) {
-        style = settings->getString(VarselWin::CONFIG_GRP, PrefDialog::SOURCE_STYLE);
-    }
-    applyStyle(style, fontDesc);
     set_default_size(640, 480);
 }
 
 void
-SourceView::createMenu(Gtk::MenuBar* gtkMenuBar)
+SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
 {
-    auto refActionGroup = Gio::SimpleActionGroup::create();
-    auto saveAction = Gio::SimpleAction::create(SAVE_ACTION);
-    refActionGroup->add_action(saveAction);
+    auto sourceFile = std::make_shared<SourceFile>(m_application);
+    auto widget = sourceFile->buildSourceView(this, item);
+    m_notebook->append_page(*widget, sourceFile->getLabel());
+
+    auto settings = m_application->getKeyFile();
+    Glib::ustring fontDesc;
+    if (!settings->getBoolean(PrefSourceView::CONFIG_SRCVIEW_GRP, PrefSourceView::DEFAULT_FONT, true)
+     && settings->hasKey(PrefSourceView::CONFIG_SRCVIEW_GRP, PrefSourceView::CONFIG_FONT)) {
+        fontDesc = settings->getString(PrefSourceView::CONFIG_SRCVIEW_GRP, PrefSourceView::CONFIG_FONT);
+    }
+    Glib::ustring style;
+    if (settings->hasKey(PrefSourceView::CONFIG_SRCVIEW_GRP, PrefSourceView::SOURCE_STYLE)) {
+        style = settings->getString(PrefSourceView::CONFIG_SRCVIEW_GRP, PrefSourceView::SOURCE_STYLE);
+    }
+    sourceFile->applyStyle(style, fontDesc);
+
+    widget->show_all();
+    m_files.emplace_back(std::move(sourceFile));
+}
+
+void
+SourceView::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& matchingFiles)
+{
+    for (size_t n = 0; n < matchingFiles.size(); ++n) {
+        auto item = matchingFiles[n];
+        addFile(item);
+    }
+    //applyStyle(style, fontDesc);
+}
+
+void
+SourceView::createActions()
+{
+    auto newAction = Gio::SimpleAction::create("new");
+    add_action(newAction);
+    newAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::newfile));
+    auto saveAction = Gio::SimpleAction::create("save");
+    add_action(saveAction);
     saveAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::save));
-    auto saveAsAction = Gio::SimpleAction::create(SAVEAS_ACTION);
-    refActionGroup->add_action(saveAsAction);
+    auto saveAsAction = Gio::SimpleAction::create("saveAs");
+    add_action(saveAsAction);
     saveAsAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::saveAs));
-    auto loadAction = Gio::SimpleAction::create(LOAD_ACTION);
-    refActionGroup->add_action(loadAction);
+    auto loadAction = Gio::SimpleAction::create("load");
+    add_action(loadAction);
     loadAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::load));
-    auto closeAction = Gio::SimpleAction::create(CLOSE_ACTION);
-    refActionGroup->add_action(closeAction);
+    auto closeAction = Gio::SimpleAction::create("close");
+    add_action(closeAction);
     closeAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::close));
-    auto quitAction = Gio::SimpleAction::create(QUIT_ACTION);
-    refActionGroup->add_action(quitAction);
-    quitAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::quit));
-    insert_action_group(ACTION_GROUP, refActionGroup);
+    //auto quitAction = Gio::SimpleAction::create(QUIT_ACTION);
+    //refActionGroup->add_action(quitAction);
+    //quitAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::quit));
+    auto pref_action = Gio::SimpleAction::create("config");
+    pref_action->signal_activate().connect(
+        [this]  (const Glib::VariantBase& value)
+		{
+			try {
+				auto builder = Gtk::Builder::create();
+				PrefSourceView* prefDialog;
+				builder->add_from_resource(m_application->get_resource_base_path() + "/pref-srcView.ui");
+				builder->get_widget_derived("PrefDialog", prefDialog, this);
+				prefDialog->run();
+				delete prefDialog;  // as this is a toplevel component shoud destroy -> works
+			}
+			catch (const Glib::Error &ex) {
+                showMessage(psc::fmt::vformat(
+                        _("Unable to load {} error {}"),
+                          psc::fmt::make_format_args("pref-srcView", ex)), Gtk::MessageType::MESSAGE_WARNING);
+			}
+		});
+    add_action(pref_action);
 }
 
 void
@@ -368,6 +415,15 @@ SourceView::applyStyle(const std::string& style, const std::string& fontDesc)
         file->applyStyle(style, fontDesc);
     }
 }
+
+
+void
+SourceView::newfile(const Glib::VariantBase& val)
+{
+    Glib::RefPtr<Gio::File> file;
+    addFile(file);
+}
+
 
 void
 SourceView::save(const Glib::VariantBase& val)
@@ -437,47 +493,3 @@ SourceView::showMessage(const Glib::ustring& msg, Gtk::MessageType msgType)
     return ret;
 }
 
-
-SourceFactory::SourceFactory(VarselApp* varselApp)
-: EventBusListener::EventBusListener()
-, m_varselApp{varselApp}
-{
-}
-
-void
-SourceFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
-{
-    auto openEvent = std::dynamic_pointer_cast<OpenEvent>(busEvent);
-    if (openEvent) {
-        std::vector<std::shared_ptr<EventItem>> matchingFiles;
-        matchingFiles.reserve(16);
-        for (auto item : openEvent->getFiles()) {
-            GtkSourceLanguage* srcLang = SourceFile::getSourceLanguage(item);
-            if (srcLang) {
-                matchingFiles.push_back(item);
-                openEvent->remove(item);
-            }
-        }
-        if (matchingFiles.size() > 0) {
-            createSourceWindow(matchingFiles);
-        }
-    }
-}
-
-
-SourceView*
-SourceFactory::createSourceWindow(const std::vector<std::shared_ptr<EventItem>>& matchingFiles)
-{
-    SourceView* sourceView{nullptr};
-    auto builder = Gtk::Builder::create();
-    try {
-        builder->add_from_resource(m_varselApp->get_resource_base_path() + "/varsel-srcwin.ui");
-        builder->get_widget_derived("SourceView", sourceView, m_varselApp, matchingFiles);
-        m_varselApp->add_window(*sourceView);      // do this in this order to ensures the menu-bar comes up...
-        sourceView->show_all();
-    }
-    catch (const Glib::Error &ex) {
-        std::cerr << "Unable to load sourceView " << ex.what() << std::endl;
-    }
-    return sourceView;
-}

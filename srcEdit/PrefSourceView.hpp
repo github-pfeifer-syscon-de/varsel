@@ -1,6 +1,6 @@
-/* -*- Mode: C; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
+/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * Copyright (C) 2020 rpf
+ * Copyright (C) 2025 RPf <gpl3@pfeifer-syscon.de>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,33 +18,28 @@
 
 #pragma once
 
-#include <gtkmm.h>
+class SourceView;
 
-class VarselWin;
-
-/*
- * dialog to change the font used for text display.
- */
-class PrefDialog
-: public Gtk::Dialog {
+class PrefSourceView
+: public Gtk::Dialog
+{
 public:
-    PrefDialog(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, VarselWin* parent);
-    virtual ~PrefDialog() = default;
+    PrefSourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder, SourceView* parent);
+    explicit PrefSourceView(const PrefSourceView& orig) = delete;
+    virtual ~PrefSourceView() = default;
 
     void on_sourcestyle_select();
     void on_response(int response) override;
-    void on_value_changed();
 
+    static constexpr auto CONFIG_SRCVIEW_GRP = "sourceView";
+    static constexpr auto SOURCE_STYLE = "sourceStyle";
     static constexpr auto CONFIG_FONT = "font";
     static constexpr auto DEFAULT_FONT = "defaultFont";
-    static constexpr auto CONFIG_BACKGROUND = "background";
-    static constexpr auto TRANSPARENT_TO_ALPHA = 256;
-private:
-    Gtk::FontButton* m_fontButton;
-    Gtk::CheckButton* m_defaultFont;
-    Gtk::Scale* m_transparencyScale;
-    Gtk::ColorButton* m_backroundColor;
-    VarselWin* m_parent;
 
+private:
+    Gtk::CheckButton* m_defaultFont;
+    Gtk::FontButton* m_fontButton;
+    Gtk::ComboBoxText* m_sourceStyle;
+    SourceView* m_parent;
 };
 

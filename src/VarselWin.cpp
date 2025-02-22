@@ -26,7 +26,6 @@
 
 #include "VarselWin.hpp"
 #include "VarselApp.hpp"
-#include "VarselList.hpp"
 #include "PrefDialog.hpp"
 
 static std::string
@@ -274,7 +273,7 @@ VarselView::getLabel()
 }
 
 void
-VarselView::apply_font(const Glib::ustring& font)
+VarselView::apply_font(const Glib::ustring& font, const Gdk::RGBA& backgrd)
 {
     //std::cout << "VarselWin::apply_font " << font << std::endl;
     if (!font.empty()) {
@@ -288,8 +287,6 @@ VarselView::apply_font(const Glib::ustring& font)
         vte_terminal_set_font(m_vte_terminal, m_defaultFont);
     }
 
-    Gdk::RGBA backgrd;
-    backgrd.set_grey(0.1, VarselWin::TERMOPACITY);
     vte_terminal_set_color_background(m_vte_terminal, backgrd.gobj());
 }
 
@@ -361,7 +358,8 @@ VarselWin::VarselWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& 
 	if (visual && screen->is_composited()) {
         gtk_widget_set_visual(GTK_WIDGET(gobj()), visual->gobj());
 	}
-    set_opacity(TERMOPACITY);
+    auto backgrd = m_application->getKeyFile()->getColor(CONFIG_GRP, PrefDialog::CONFIG_BACKGROUND);
+    set_opacity(backgrd.get_alpha());   // make this transparent so the term opacity is shown
 
     refBuilder->get_widget("notebook", m_notebook);
     auto config = getKeyFile();
@@ -373,15 +371,13 @@ VarselWin::VarselWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& 
         }
     }
 
-    auto listListener = std::make_shared<ListFactory>(this);
-    m_application->getEventBus()->addListener(listListener);
 
     activate_actions();
     show_all_children();
 }
 
 
-std::shared_ptr<KeyConfig>
+std::shared_ptr<VarselConfig>
 VarselWin::getKeyFile()
 {
     return m_application->getKeyFile();
@@ -396,18 +392,18 @@ VarselWin::showFile(const std::string& uri)
     showFiles(files);
 }
 
-void
-VarselWin::checkAfterSend(const std::shared_ptr<BusEvent>& event)
-{
-    //std::cout << "after send compl " << std::boolalpha << event->isCompleted() << std::endl;
-    if (!event->isCompleted()) {
-        auto msg = event->getCompletionInfo();
-        if (!msg.empty()){
-            auto showMsg = psc::fmt::vformat(_("Unhandled files {}"), psc::fmt::make_format_args(msg));
-            showMessage(showMsg, Gtk::MessageType::MESSAGE_WARNING);
-        }
-    }
-}
+//void
+//VarselWin::checkAfterSend(const std::shared_ptr<BusEvent>& event)
+//{
+//    //std::cout << "after send compl " << std::boolalpha << event->isCompleted() << std::endl;
+//    if (!event->isCompleted()) {
+//        auto msg = event->getCompletionInfo();
+//        if (!msg.empty()){
+//            auto showMsg = psc::fmt::vformat(_("Unhandled files {}"), psc::fmt::make_format_args(msg));
+//            showMessage(showMsg, Gtk::MessageType::MESSAGE_WARNING);
+//        }
+//    }
+//}
 
 void
 VarselWin::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files)
@@ -416,7 +412,7 @@ VarselWin::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files)
     openEvent->setContext(files);
     if (openEvent->isAvail()) {
         m_application->getEventBus()->send(openEvent);
-        checkAfterSend(openEvent);
+        //checkAfterSend(openEvent);
     }
     else {
         std::cout << "VarselWin::showFiles open action not availabele" << std::endl;
@@ -429,7 +425,7 @@ VarselWin::openTerm(const std::string& uri)
     //std::cout << "openTerm "
     //          << " uri \"" << uri << "\"" << std::endl;
     auto view = std::make_shared<VarselView>(uri, this);
-    view->apply_font(getFont());
+    view->apply_font(getFont(), getBackground());
     auto widget = view->getScroll();
     m_notebook->append_page(*widget, *view->getLabel());
     widget->show_all();
@@ -481,11 +477,20 @@ VarselWin::getFont()
     return font;
 }
 
-void
-VarselWin::apply_font(const std::string& font)
+Gdk::RGBA
+VarselWin::getBackground()
 {
+    auto config = getKeyFile();
+    Gdk::RGBA backgrd{config->getColor(CONFIG_GRP, PrefDialog::CONFIG_BACKGROUND)};
+    return backgrd;
+}
+
+void
+VarselWin::apply_font(const std::string& font, const Gdk::RGBA& backgrd)
+{
+    set_opacity(backgrd.get_alpha());   // make this transparent so the term opacity is shown
     for (auto& view : m_views) {
-        view->apply_font(font);
+        view->apply_font(font, backgrd);
     }
 }
 

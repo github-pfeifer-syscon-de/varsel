@@ -23,7 +23,7 @@
 #include <VarselConfig.hpp>
 #include <Log.hpp>
 
-#include "VarselWin.hpp"
+#include "SourceView.hpp"
 #include "EventBus.hpp"
 
 
@@ -31,12 +31,12 @@
  * get the application up and running
  *   about and help dialog
  */
-class VarselApp
+class EditApp
 : public Gtk::Application
 {
 public:
-    VarselApp(int arc, char **argv);
-    virtual ~VarselApp() = default;
+    EditApp(int arc, char **argv);
+    virtual ~EditApp() = default;
 
     void on_activate() override;
     void on_startup() override;
@@ -45,14 +45,13 @@ public:
     void save_config();
     std::shared_ptr<EventBus> getEventBus();
 protected:
-    VarselWin* createVarselWindow();
-    VarselWin* getOrCreateVarselWindow();
+    SourceView* createVarselWindow();
+    SourceView* getOrCreateVarselWindow();
 
 private:
-    VarselWin* m_varselWindow{nullptr};
+    SourceView* m_varselWindow{nullptr};
     std::string m_exec;
     std::shared_ptr<VarselConfig> m_config;
-    std::string get_file(const std::string& name);
     void on_action_quit();
     void on_action_about();
     void on_action_help();

@@ -1,5 +1,5 @@
 
-SUBDIRS = res src test po
+SUBDIRS = res resEdit resList srcLib srcEdit srcList src test po
 
 dist_doc_DATA = \
 	NEWS \

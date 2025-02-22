@@ -53,7 +53,7 @@ GitTreeNode::getEntries()
     return m_entries;
 }
 
-GitDataSource::GitDataSource(const Glib::RefPtr<Gio::File>& dir, VarselApp* application)
+GitDataSource::GitDataSource(const Glib::RefPtr<Gio::File>& dir, ListApp* application)
 : DataSource(application)
 , m_dir{dir}
 {

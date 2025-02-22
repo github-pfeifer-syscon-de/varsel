@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/de/pfeifer_syscon/va_edit">
+    <file preprocess="xml-stripblanks">varsel-srcwin.ui</file>
+    <file preprocess="xml-stripblanks">pref-srcView.ui</file>
+    <file preprocess="xml-stripblanks">src-menu.ui</file>
+    <file>varsel.png</file>
+  </gresource>
+</gresources>

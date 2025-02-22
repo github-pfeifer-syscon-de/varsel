@@ -1,38 +1,43 @@
 
-bin_PROGRAMS = varsel
+bin_PROGRAMS = va_edit
 
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
         -DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
         -DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	-I"$(srcdir)"/../srcLib \
-	$(VTE_CFLAGS) \
 	$(GENERICIMG_CFLAGS) \
 	$(GLIBMM_CFLAGS) \
+	$(SRCVIEW_CFLAGS) \
 	$(GTKMM_CFLAGS)
 
-varsel_CFLAGS = -Wall
-varsel_CXXFLAGS = -Wall \
+
+va_edit_CFLAGS = -Wall
+va_edit_CXXFLAGS = -Wall \
 	-Wextra \
 	-Wpedantic \
 	-Wno-unused-parameter
 
-varsel_LDFLAGS = @EXTRA_LDFLAGS@
+va_edit_LDFLAGS = @EXTRA_LDFLAGS@
 
-varsel_LDADD =  \
+va_edit_LDADD =  \
  	../srcLib/libcommon.a \
-	$(VTE_LIBS) \
 	$(GENERICIMG_LIBS) \
 	$(GLIBMM_LIBS) \
+	$(SRCVIEW_LIBS) \
 	$(GTKMM_LIBS)
 
-varsel_SOURCES = resources.c \
-	VarselApp.cpp \
-	VarselApp.hpp \
-	VarselWin.cpp \
-	VarselWin.hpp \
-	PrefDialog.cpp \
-	PrefDialog.hpp
+va_edit_SOURCES = resources.c \
+	PrefSourceView.cpp \
+	PrefSourceView.hpp \
+	EditApp.cpp \
+	EditApp.hpp \
+	SourceView.cpp \
+	SourceView.hpp
+
+
+
+
 # Remove ui directory on uninstall
 uninstall-local:
 	-rm -r $(pkgdatadir)

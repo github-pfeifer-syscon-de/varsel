@@ -24,42 +24,49 @@
 
 #include "DataSource.hpp"
 #include "DataModel.hpp"
+#include <VarselConfig.hpp>
 
-class VarselWin;
+
+class ListApp;
 
 class VarselList
-: public Gtk::Window
+: public Gtk::ApplicationWindow
 , public ListListener
 {
 public:
     VarselList(
           BaseObjectType* cobject
         , const Glib::RefPtr<Gtk::Builder>& builder
-        , const Glib::ustring& name
-        , const std::shared_ptr<DataSource>& data
-        , VarselWin* varselWin);
+        , ListApp* listApp);
     explicit VarselList(const VarselList& orig) = delete;
     virtual ~VarselList() = default;
     void on_hide() override;
     static VarselList* show(
           const Glib::ustring& name
         , const std::shared_ptr<DataSource>& data
-        , VarselWin* varselWin);
+        , ListApp* varselWin);
     bool on_view_button_press_event(GdkEventButton* event);
     bool on_view_button_release_event(GdkEventButton* event);
     void nodeAdded(const std::shared_ptr<BaseTreeNode>& baseTreeNode) override;
     void listDone(Severity severity, const Glib::ustring& msg) override;
     void showMessage(const Glib::ustring& msg, Gtk::MessageType msgType = Gtk::MessageType::MESSAGE_INFO);
 
-    static constexpr auto ACTION_GROUP = "list";
+    void showFile(const Glib::RefPtr<Gio::File>& file);
+    //static constexpr auto ACTION_GROUP = "list";
     static constexpr auto PANED_POS = "panedPos";
+    std::shared_ptr<VarselConfig> getKeyFile();
+    void save_config();
 protected:
     void updateList();
+    std::shared_ptr<DataSource> setupDataSource(const Glib::RefPtr<Gio::File>& file);
+
 private:
     Glib::RefPtr<Gtk::TreeView> m_treeView;
     Glib::RefPtr<Gtk::TreeView> m_listView;
     std::shared_ptr<DataSource> m_data;
-    VarselWin* m_varselWin;
+    ListApp* m_listApp;
+    std::shared_ptr<VarselConfig> m_config;
+
     std::shared_ptr<psc::ui::KeyfileTableManager> m_kfTableManager;
 
     std::vector<pDataAction> m_actions;
@@ -68,16 +75,3 @@ private:
 };
 
 
-
-class ListFactory
-: public EventBusListener
-{
-public:
-    ListFactory(VarselWin* varselWin);
-    explicit ListFactory(const ListFactory& listener) = delete;
-    virtual ~ListFactory() = default;
-
-    void notify(const std::shared_ptr<BusEvent>& busEvent) override;
-private:
-    VarselWin* m_varselWin;
-};

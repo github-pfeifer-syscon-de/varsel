@@ -22,22 +22,21 @@
 #include <psc_format.hpp>
 #include <locale>
 #include <clocale>
-#include <git2.h>
-#include <string_view>
+#include <gtksourceview/gtksource.h>
 
 #include "config.h"
-#include "VarselApp.hpp"
+#include "EditApp.hpp"
 
-VarselApp::VarselApp(int argc, char **argv)
-: Gtk::Application(argc, argv, "de.pfeifer_syscon.varsel", Gio::ApplicationFlags::APPLICATION_HANDLES_OPEN)
+EditApp::EditApp(int argc, char **argv)
+: Gtk::Application(argc, argv, "de.pfeifer_syscon.va_edit", Gio::ApplicationFlags::APPLICATION_HANDLES_OPEN)
 , m_exec{argv[0]}
-, m_log{psc::log::Log::create("varsel")}
+, m_log{psc::log::Log::create("va_edit")}
 {
 }
 
 
 void
-VarselApp::on_activate()
+EditApp::on_activate()
 {
     // will be used when called w/o parameter
     getOrCreateVarselWindow();
@@ -45,33 +44,34 @@ VarselApp::on_activate()
 
 }
 
-VarselWin*
-VarselApp::createVarselWindow()
+SourceView*
+EditApp::createVarselWindow()
 {
-    VarselWin* varselWindow{nullptr};
+    SourceView* sourceView{nullptr};
     auto builder = Gtk::Builder::create();
     try {
-        builder->add_from_resource(get_resource_base_path() + "/varsel-appwin.ui");
-        builder->get_widget_derived("Varsel", varselWindow, this);
-        add_window(*varselWindow);      // do this in this order to ensures the menu-bar comes up...
-        varselWindow->show();
+        builder->add_from_resource(get_resource_base_path() + "/varsel-srcwin.ui");
+        builder->get_widget_derived("SourceView", sourceView, this);
+        add_window(*sourceView);      // do this in this order to ensures the menu-bar comes up...
+        sourceView->show_all();
     }
     catch (const Glib::Error &ex) {
-        std::cerr << "Unable to load varselwindow " << ex.what() << std::endl;
+        std::cerr << "Unable to load sourceView " << ex.what() << std::endl;
     }
-    return varselWindow;
+    return sourceView;
 }
 
 
-VarselWin*
-VarselApp::getOrCreateVarselWindow()
+
+SourceView*
+EditApp::getOrCreateVarselWindow()
 {
     // The application has been asked to open some files,
     // so let's open a new view for each one.
-    VarselWin* appwindow = nullptr;
+    SourceView* appwindow = nullptr;
     auto windows = get_windows();
     for (size_t i = 0; i < windows.size(); ++i) {   // as there might be multiple windows
-        auto testwindow = dynamic_cast<VarselWin*>(windows[i]);
+        auto testwindow = dynamic_cast<SourceView*>(windows[i]);
         if (testwindow != nullptr) {
             appwindow = testwindow;
             break;
@@ -91,14 +91,14 @@ VarselApp::getOrCreateVarselWindow()
 
 
 void
-VarselApp::on_open(const Gio::Application::type_vec_files& files, const Glib::ustring& hint)
+EditApp::on_open(const Gio::Application::type_vec_files& files, const Glib::ustring& hint)
 {
-    //std::cout << "VarselApp::on_open " << files.size() << std::endl;
+    //std::cout << "EditApp::on_open " << files.size() << std::endl;
     std::vector<Glib::RefPtr<Gio::File>> gioFiles;
     gioFiles.reserve(files.size());
     for (size_t i = 0; i < files.size(); ++i) {
         auto uri = files[i]->get_uri();
-        std::cout << "Uri " << uri << std::endl;
+        std::cout << "Uri " << uri << " hint " << hint << std::endl;
         gioFiles.push_back(files[i]);
     }
     auto varselWindow = getOrCreateVarselWindow();
@@ -107,9 +107,10 @@ VarselApp::on_open(const Gio::Application::type_vec_files& files, const Glib::us
 
 
 void
-VarselApp::on_action_quit()
+EditApp::on_action_quit()
 {
     m_varselWindow->hide();
+    gtk_source_finalize();
 
     // and we shoud delete appWindow if we were not going exit anyway
     // Not really necessary, when Gtk::Widget::hide() is called, unless
@@ -119,7 +120,7 @@ VarselApp::on_action_quit()
 }
 
 void
-VarselApp::on_action_about() {
+EditApp::on_action_about() {
     auto builder = Gtk::Builder::create();
     try {
         builder->add_from_resource(get_resource_base_path() + "/abt-dlg.ui");
@@ -137,26 +138,10 @@ VarselApp::on_action_about() {
     }
 }
 
-std::string
-VarselApp::get_file(const std::string& name)
-{
-    auto fullPath = Glib::canonicalize_filename(Glib::StdStringView(m_exec), Glib::get_current_dir());
-    Glib::RefPtr<Gio::File> f = Gio::File::create_for_path(fullPath);
-    auto dist_dir = f->get_parent()->get_parent();
-    // this file identifies the development dir, beside executable
-    auto readme = Glib::build_filename(dist_dir->get_path(), name);
-    if (!Glib::file_test(readme, Glib::FileTest::FILE_TEST_IS_REGULAR)) {
-        // alternative search in distribution
-        Glib::RefPtr<Gio::File> packageData = Gio::File::create_for_path(PACKAGE_DATA_DIR); // see Makefile.am
-        std::string base_name = packageData->get_basename();
-        readme = Glib::build_filename(packageData->get_parent()->get_path(), "doc", base_name, name);
-    }
-    return readme;
-}
 
 
 void
-VarselApp::on_action_help() {
+EditApp::on_action_help() {
     auto builder = Gtk::Builder::create();
     try {
         builder->add_from_resource(get_resource_base_path() + "/help-dlg.ui");
@@ -178,17 +163,19 @@ VarselApp::on_action_help() {
 
 
 void
-VarselApp::on_startup()
+EditApp::on_startup()
 {
     Gtk::Application::on_startup();
 
-    add_action("quit", sigc::mem_fun(*this, &VarselApp::on_action_quit));
-    add_action("about", sigc::mem_fun(*this, &VarselApp::on_action_about));
-    add_action("help", sigc::mem_fun(*this, &VarselApp::on_action_help));
+    gtk_source_init();
+
+    add_action("quit", sigc::mem_fun(*this, &EditApp::on_action_quit));
+    add_action("about", sigc::mem_fun(*this, &EditApp::on_action_about));
+    add_action("help", sigc::mem_fun(*this, &EditApp::on_action_help));
 
     auto builder = Gtk::Builder::create();
     try {
-        builder->add_from_resource(get_resource_base_path() + "/app-menu.ui");
+        builder->add_from_resource(get_resource_base_path() + "/src-menu.ui");
         auto menuObj = builder->get_object("menubar");
         auto menuBar = Glib::RefPtr<Gio::Menu>::cast_dynamic(menuObj);
         if (menuBar) {
@@ -204,7 +191,7 @@ VarselApp::on_startup()
 }
 
 void
-VarselApp::save_config()
+EditApp::save_config()
 {
     try {
         m_config->saveConfig();
@@ -215,17 +202,17 @@ VarselApp::save_config()
 }
 
 std::shared_ptr<VarselConfig>
-VarselApp::getKeyFile()
+EditApp::getKeyFile()
 {
     if (!m_config) {
-        m_config = std::make_shared<VarselConfig>("varsel.conf");
+        m_config = std::make_shared<VarselConfig>("va_edit.conf");
     }
     return m_config;
 }
 
 
 std::shared_ptr<EventBus>
-VarselApp::getEventBus()
+EditApp::getEventBus()
 {
     if (!m_eventBus) {
         m_eventBus = std::make_shared<EventBus>();
@@ -249,7 +236,7 @@ main(int argc, char** argv)
     textdomain(PACKAGE);
     Glib::init();
 
-    VarselApp app(argc, argv);
+    EditApp app(argc, argv);
     return app.run();
 }
 

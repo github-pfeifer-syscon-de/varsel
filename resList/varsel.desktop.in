@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Version=0.1
+Name=Varsel list
+Comment=Some varsel list
+Categories=Application;Utility;
+Exec=va_list
+Icon=@APP_ICON@

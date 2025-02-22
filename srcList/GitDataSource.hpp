@@ -121,7 +121,7 @@ class GitDataSource
 : public DataSource
 {
 public:
-    GitDataSource(const Glib::RefPtr<Gio::File>& dir, VarselApp* application);
+    GitDataSource(const Glib::RefPtr<Gio::File>& dir, ListApp* application);
     explicit GitDataSource(const GitDataSource& orig) = delete;
     virtual ~GitDataSource() = default;
 

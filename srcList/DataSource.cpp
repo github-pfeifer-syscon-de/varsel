@@ -21,7 +21,7 @@
 
 #include "VarselList.hpp"
 #include "DataSource.hpp"
-#include "VarselApp.hpp"
+#include "ListApp.hpp"
 
 std::shared_ptr<ListColumns> FileTreeNode::m_listColumns;
 
@@ -158,7 +158,7 @@ DataAction::getAction()
     return m_action;
 }
 
-OpenDataAction::OpenDataAction(VarselApp* application)
+OpenDataAction::OpenDataAction(ListApp* application)
 : DataAction::DataAction(_("Open"), "open")
 , m_openEvent{std::make_shared<OpenEvent>()}
 , m_application{application}
@@ -194,7 +194,7 @@ OpenDataAction::execute(const Glib::VariantBase& val)
     }
 }
 
-DataSource::DataSource(VarselApp* application)
+DataSource::DataSource(ListApp* application)
 : m_treeColumns{FileTreeModel::getTreeColumns()}
 , m_application{application}
 {

@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<interface>
+  <!-- interface-requires gtk+ 3.0 -->
+   <menu id="menubar">
+    <submenu>
+      <attribute translatable="yes" name="label">File</attribute>
+      <section>
+        <item>
+          <attribute translatable="yes" name="label">New</attribute>
+          <attribute name="action">win.new</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Load</attribute>
+          <attribute name="action">win.load</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Save</attribute>
+          <attribute name="action">win.save</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Save as</attribute>
+          <attribute name="action">win.saveAs</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Close</attribute>
+          <attribute name="action">win.close</attribute>
+        </item>
+	<item>
+          <attribute translatable="yes" name="label">Config</attribute>
+          <attribute name="action">win.config</attribute>
+        </item>
+        <item>
+          <attribute translatable="yes" name="label">Quit</attribute>
+          <attribute name="action">app.quit</attribute>
+        </item>
+      </section>
+    </submenu>
+    <submenu>
+      <attribute translatable="yes" name="label">Help</attribute>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">_Help</attribute>
+          <attribute name="action">app.help</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">_About</attribute>
+          <attribute name="action">app.about</attribute>
+        </item>
+      </section>
+    </submenu>
+  </menu>
+</interface>

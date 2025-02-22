@@ -82,7 +82,7 @@ ArchivWorker::done()
     m_archivListener->archivDone(m_archivSummary, msg);
 }
 
-ArchiveDataSource::ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, VarselApp* application)
+ArchiveDataSource::ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application)
 : DataSource::DataSource(application)
 , ArchivListener::ArchivListener()
 , m_file{file}

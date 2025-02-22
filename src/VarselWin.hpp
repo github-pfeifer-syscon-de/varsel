@@ -24,13 +24,11 @@
 #include <Log.hpp>
 #include <vte/vte.h>
 
-#include "DataSource.hpp"
+#include "EventBus.hpp"
 
 class VarselApp;
-class VarselList;
-class KeyConfig;
+class VarselConfig;
 class VarselWin;
-class TabLabel;
 
 class VarselView
 {
@@ -42,7 +40,7 @@ public:
     void apply_dir();
     void showFile(const std::string& uri);
     void openTerm(const std::string& uri);
-    void apply_font(const Glib::ustring& font);
+    void apply_font(const Glib::ustring& font, const Gdk::RGBA& backgrd);
     Gtk::ScrolledWindow* getScroll();
     Gtk::Widget* getLabel();
     std::string getUri();
@@ -77,7 +75,7 @@ private :
 
 class VarselWin
 : public Gtk::ApplicationWindow
-, public EventNotifyContext
+//, public EventNotifyContext
 {
 public:
     VarselWin(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, VarselApp* varselApp);
@@ -86,21 +84,20 @@ public:
     void on_hide() override;
     void showFile(const std::string& uri);
     void showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files);
-    void checkAfterSend(const std::shared_ptr<BusEvent>& event) override;
+//    void checkAfterSend(const std::shared_ptr<BusEvent>& event) override;
     void openTerm(const std::string& uri);
-    void remove(VarselList* varselList);
     VarselApp* getApplication();
     std::string getFont();
-    void apply_font(const std::string& font);
+    Gdk::RGBA getBackground();
+    void apply_font(const std::string& font, const Gdk::RGBA& backgrd);
     void close(VarselView* view);
-    std::shared_ptr<KeyConfig> getKeyFile();
+    std::shared_ptr<VarselConfig> getKeyFile();
     void showMessage(const Glib::ustring& msg, Gtk::MessageType msgType = Gtk::MessageType::MESSAGE_INFO);
 
     static constexpr auto MAX_PATHS = 20u;
     static constexpr auto FMT_PATH = "%s%02d";
     static constexpr auto CONFIG_GRP = "varsel";
     static constexpr auto CONFIG_PATH = "path";
-    static constexpr auto TERMOPACITY = 0.9;
 protected:
 
 private:

@@ -19,9 +19,9 @@
 #include <iostream>
 
 #include "FileDataSource.hpp"
-#include "VarselApp.hpp"
+#include "ListApp.hpp"
 
-FileDataSource::FileDataSource(const Glib::RefPtr<Gio::File>& file, VarselApp* application)
+FileDataSource::FileDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application)
 : DataSource::DataSource(application)
 , m_file{file}
 {

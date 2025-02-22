@@ -23,8 +23,7 @@
 
 
 #include "VarselList.hpp"
-#include "VarselWin.hpp"
-#include "VarselApp.hpp"
+#include "ListApp.hpp"
 #include "FileDataSource.hpp"
 #include "ArchiveDataSource.hpp"
 #include "GitDataSource.hpp"
@@ -32,49 +31,63 @@
 VarselList::VarselList(
       BaseObjectType* cobject
     , const Glib::RefPtr<Gtk::Builder>& builder
-    , const Glib::ustring& name
-    , const std::shared_ptr<DataSource>& data
-    , VarselWin* varselWin)
-: Gtk::Window(cobject)
+    , ListApp* listApp)
+: Gtk::ApplicationWindow(cobject)
 , ListListener()
-, m_data{data}
-, m_varselWin{varselWin}
+, m_listApp{listApp}
 {
-    set_title(name);
-    auto pix = Gdk::Pixbuf::create_from_resource(m_varselWin->getApplication()->get_resource_base_path() + "/varsel.png");
+    auto pix = Gdk::Pixbuf::create_from_resource(m_listApp->get_resource_base_path() + "/varsel.png");
     set_icon(pix);
 
     builder->get_widget("paned", m_paned);
-    auto config = m_varselWin->getKeyFile();
-    int pos = config->getInteger(m_data->getConfigGroup(), PANED_POS, 200);
-    m_paned->set_position(pos);
 
-    m_refTreeModel = data->createTree();
-    //tree->clear();    consider these for update ?
-    //list->clear();
-    data->update(m_refTreeModel, this);
     auto treeObj = builder->get_object("tree_view");
     m_treeView = Glib::RefPtr<Gtk::TreeView>::cast_dynamic(treeObj);
-    m_treeView->append_column(_("Name"), data->m_treeColumns->m_name);
+
+    auto listObj = builder->get_object("list_view");
+    m_listView = Glib::RefPtr<Gtk::TreeView>::cast_dynamic(listObj);
+    m_listView->get_selection()->set_mode(Gtk::SelectionMode::SELECTION_MULTIPLE);
+
+    m_listView->signal_button_press_event().connect(
+        sigc::mem_fun(*this, &VarselList::on_view_button_press_event), false);
+    m_listView->signal_button_release_event().connect(
+        sigc::mem_fun(*this, &VarselList::on_view_button_release_event), false);
+    m_listView->add_events(Gdk::EventMask::BUTTON_PRESS_MASK
+                         | Gdk::EventMask::BUTTON_RELEASE_MASK);
+    set_default_size(640, 480);
+}
+
+void
+VarselList::showFile(const Glib::RefPtr<Gio::File>& file)
+{
+    auto info = file->query_info("*");
+    set_title(info->get_display_name());
+    m_data = setupDataSource(file);
+    m_treeView->append_column(_("Name"), m_data->m_treeColumns->m_name);
+    m_refTreeModel = m_data->createTree();
+    // create individual config instances so wo keep the interference to a minimum (but some might be inevitable, if multiple instances exist, the last saved wins)
+    std::string confName = std::string("va_") + m_data->getConfigGroup() + std::string(".conf");
+    m_config = std::make_shared<VarselConfig>(confName.c_str());
+
+    int pos = m_config->getInteger(m_data->getConfigGroup(), PANED_POS, 200);
+    m_paned->set_position(pos);
+
+    //tree->clear();    consider these for update ?
+    //list->clear();
+    m_data->update(m_refTreeModel, this);
 
     m_data->addActions(m_actions);
-    auto refActionGroup = Gio::SimpleActionGroup::create();
     for (auto& action : m_actions) {
         auto gAction = action->getAction();
-        refActionGroup->add_action(gAction);
+        add_action(gAction);
     }
-    insert_action_group(ACTION_GROUP, refActionGroup);
 
     m_treeView->set_model(m_refTreeModel);
     m_treeView->expand_all();
     m_treeView->get_selection()->signal_changed().connect(
             sigc::mem_fun(*this, &VarselList::updateList));
 
-    auto listObj = builder->get_object("list_view");
-    m_listView = Glib::RefPtr<Gtk::TreeView>::cast_dynamic(listObj);
-    m_listView->get_selection()->set_mode(Gtk::SelectionMode::SELECTION_MULTIPLE);
-
-    m_kfTableManager = std::make_shared<psc::ui::KeyfileTableManager>(data->getListColumns(), m_varselWin->getKeyFile()->getConfig(), data->getConfigGroup());
+    m_kfTableManager = std::make_shared<psc::ui::KeyfileTableManager>(m_data->getListColumns(), getKeyFile()->getConfig(), m_data->getConfigGroup());
     m_kfTableManager->setup(this);
     m_kfTableManager->setup(m_listView);
 
@@ -84,12 +97,47 @@ VarselList::VarselList(
         updateList();
     }
 
-    m_listView->signal_button_press_event().connect(
-        sigc::mem_fun(*this, &VarselList::on_view_button_press_event), false);
-    m_listView->signal_button_release_event().connect(
-        sigc::mem_fun(*this, &VarselList::on_view_button_release_event), false);
-    m_listView->add_events(Gdk::EventMask::BUTTON_PRESS_MASK
-                         | Gdk::EventMask::BUTTON_RELEASE_MASK);
+}
+
+void
+VarselList::save_config()
+{
+    try {
+        m_config->saveConfig();
+    }
+    catch (const Glib::Error& exc) {
+        psc::log::Log::logAdd(psc::log::Level::Error, psc::fmt::format("File error {} saving config", exc));
+    }
+}
+
+std::shared_ptr<VarselConfig>
+VarselList::getKeyFile()
+{
+    return m_config;
+}
+
+std::shared_ptr<DataSource>
+VarselList::setupDataSource(const Glib::RefPtr<Gio::File>& file)
+{
+    std::shared_ptr<DataSource> ds;
+    auto gitDir = file->get_child(".git");  // wild guess identify or use git_repository_discover
+    auto type = file->query_file_type();
+    if (type == Gio::FileType::FILE_TYPE_REGULAR
+     && ArchiveDataSource::can_handle(file)) {
+        ds = std::make_shared<ArchiveDataSource>(file, m_listApp);
+    }
+    else if (type == Gio::FileType::FILE_TYPE_DIRECTORY
+          && gitDir->query_exists()) {
+        ds = std::make_shared<GitDataSource>(file, m_listApp);
+    }
+    else if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
+        ds = std::make_shared<FileDataSource>(file, m_listApp);
+    }
+    //if (ds) {
+    //    VarselList::show(file->get_uri(), ds, m_listApp);
+    //    std::cout << "ListFactory::notify remove " << item->getFile()->get_path() << std::endl;
+    //}
+    return ds;
 }
 
 void
@@ -194,9 +242,9 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
         // -> check if context is not empty
         for (auto& action : m_actions) {
             action->setContext(files);
-            action->setEventNotifyContext(m_varselWin);
+            //action->setEventNotifyContext(m_listApp);
             if (action->isAvail()) {
-                auto menuItem = Gio::MenuItem::create(action->getLabel(), std::string(ACTION_GROUP) + "." + action->getName());
+                auto menuItem = Gio::MenuItem::create(action->getLabel(), "win." + action->getName());
                 gioMenu->append_item(menuItem);
             }
         }
@@ -216,7 +264,7 @@ VarselList::on_hide()
 {
     //std::cout << "VarselList::on_hide" << std::endl;
     int pos = m_paned->get_position();
-    auto config = m_varselWin->getKeyFile();
+    auto config = getKeyFile();
     config->setInteger(m_data->getConfigGroup(), PANED_POS, pos);
     m_kfTableManager->saveConfig(this);
     Gtk::Window::on_hide();
@@ -226,61 +274,21 @@ VarselList*
 VarselList::show(
       const Glib::ustring& name
     , const std::shared_ptr<DataSource>& data
-    , VarselWin* varselWin)
+    , ListApp* listApp)
 {
     VarselList* varselList = nullptr;
     auto builder = Gtk::Builder::create();
     try {
-        auto varselApp = varselWin->getApplication();
-        builder->add_from_resource(varselApp->get_resource_base_path() + "/varsel-win.ui");
-        builder->get_widget_derived("VarselList", varselList, name, data, varselWin);
-        varselApp->add_window(*varselList);
+        builder->add_from_resource(listApp->get_resource_base_path() + "/varsel-win.ui");
+        builder->get_widget_derived("VarselList", varselList, listApp);
+        listApp->add_window(*varselList);
         varselList->show_all();
     }
     catch (const Glib::Error &ex) {
-        varselWin->showMessage(
-            psc::fmt::vformat(
-                  _("Error {} loading {}")
-                , psc::fmt::make_format_args(ex, "varselWin")), Gtk::MessageType::MESSAGE_WARNING);
+        //listApp->showMessage(
+        //    psc::fmt::vformat(
+        //          _("Error {} loading {}")
+        //        , psc::fmt::make_format_args(ex, "varselWin")), Gtk::MessageType::MESSAGE_WARNING);
     }
     return varselList;
-}
-
-ListFactory::ListFactory(VarselWin* varselWin)
-: m_varselWin{varselWin}
-{
-}
-
-
-void
-ListFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
-{
-    auto openEvent = std::dynamic_pointer_cast<OpenEvent>(busEvent);
-    if (openEvent) {
-        for (auto& item : openEvent->getFiles()) {
-            auto file = item->getFile();
-            auto type = file->query_file_type();
-            std::cout << "ListFactory::notify testing " << item->getFile()->get_path() << std::endl;
-            //auto basename = file->get_basename();
-            //std::cout << "basename " << basename << std::endl;
-            std::shared_ptr<DataSource> ds;
-            auto gitDir = file->get_child(".git");  // wild guess identify or use git_repository_discover
-            if (type == Gio::FileType::FILE_TYPE_REGULAR
-             && ArchiveDataSource::can_handle(file)) {
-                ds = std::make_shared<ArchiveDataSource>(file, m_varselWin->getApplication());
-            }
-            else if (type == Gio::FileType::FILE_TYPE_DIRECTORY
-                  && gitDir->query_exists()) {
-                ds = std::make_shared<GitDataSource>(file, m_varselWin->getApplication());
-            }
-            else if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
-                ds = std::make_shared<FileDataSource>(file, m_varselWin->getApplication());
-            }
-            if (ds) {
-                VarselList::show(file->get_uri(), ds, m_varselWin);
-                std::cout << "ListFactory::notify remove " << item->getFile()->get_path() << std::endl;
-                openEvent->remove(item);
-            }
-        }
-    }
 }
