@@ -21,6 +21,7 @@
 
 
 #include "ListFactory.hpp"
+#include "Archiv.hpp"
 
 
 
@@ -41,13 +42,16 @@ ListFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
             std::cout << "ListFactory::notify testing " << item->getFile()->get_path() << std::endl;
             auto basename = file->get_basename();
             //std::cout << "basename " << basename << std::endl;
-            if (type == Gio::FileType::FILE_TYPE_DIRECTORY
-             || (type == Gio::FileType::FILE_TYPE_REGULAR
-             && (basename.find(".tar") != basename.npos
-               ||basename.find(".tgz") != basename.npos
-               ||basename.find(".zip")  != basename.npos))) {  // this is kind of ugly as we can't use the scanning ability (after all it might be more convenient to draw the Archive here ...)
-                createListWindow(item);
+            if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
+                createListWindow(item);     // this may either be directory or a git repos
                 openEvent->remove(item);
+            }
+            if (type == Gio::FileType::FILE_TYPE_REGULAR) {
+                Archiv archiv{file};
+                if (archiv.canRead()) {
+                    createListWindow(item);
+                    openEvent->remove(item);
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ AM_CPPFLAGS = \
 	$(GENERICIMG_CFLAGS) \
 	$(GLIBMM_CFLAGS) \
 	$(SRCVIEW_CFLAGS) \
+	$(ARCHIVE_CFLAGS) \
 	$(GTKMM_CFLAGS)
 
 
@@ -25,7 +26,7 @@ va_edit_LDADD =  \
 	$(GENERICIMG_LIBS) \
 	$(GLIBMM_LIBS) \
 	$(SRCVIEW_LIBS) \
-	$(ARCHIV_LIBS) \
+	$(ARCHIVE_LIBS) \
 	$(GTKMM_LIBS)
 
 va_edit_SOURCES = resources.c \
