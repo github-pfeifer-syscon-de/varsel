@@ -31,8 +31,6 @@ va_list_LDADD =  \
 va_list_SOURCES = resources.c \
 	ListApp.cpp \
 	ListApp.hpp \
-	Archiv.cpp \
-	Archiv.hpp \
 	FileDataSource.cpp \
 	FileDataSource.hpp \
 	ArchiveDataSource.cpp \

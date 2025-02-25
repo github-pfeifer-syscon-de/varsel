@@ -252,6 +252,12 @@ public:
     {
         m_permission = permission;
     }
+    // during scanning directories this
+    //   will either throw a exception
+    //     or printing a message and continue (pack as good as feasible)
+    virtual bool isFailForScanError() {
+        return false;
+    }
     Glib::RefPtr<Gio::File> m_dir;
     bool m_useSubDirs;
     std::shared_ptr<ArchivEntry> m_entry;

@@ -306,9 +306,7 @@ Archiv::setError(struct archive *archiv, const Glib::Error& err, const char* whe
 {
     std::string errWhat = err.what();
     //auto path = m_file->get_path(); path already included
-    auto msg = psc::fmt::vformat(_("{} error {}"),
-                        psc::fmt::make_format_args(errWhat, where));
-    archive_set_error(archiv, ARCHIVE_FATAL,  msg.c_str());
+    archive_set_error(archiv, ARCHIVE_FATAL, "%s error %s", errWhat.c_str(), where);
 }
 
 
@@ -457,6 +455,7 @@ ArchivFileProvider::getNextEntry()
             break;
         }
     }
+    std::cout << "ArchivFileProvider::getNextEntry null " << std::endl;
     return nullptr;
 }
 
@@ -496,28 +495,44 @@ ArchivFileProvider::writeContent(Archiv* archiv, struct archive* structarchiv, s
 ArchivDirWalker::ArchivDirWalker(Glib::RefPtr<Gio::File> scanDir, ArchivFileProvider* provider)
 : m_scanDir{scanDir}
 , m_provider{provider}
-, m_entries{m_scanDir->enumerate_children("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE)}
 {
 }
 
 Glib::RefPtr<Gio::File>
 ArchivDirWalker::scanEntries()
 {
-    while (true) {
-        auto fileInfo = m_entries->next_file();
-        //std::cout << "ArchivFileProvider::scanEntries " << m_scanDir->get_path()
-        //          << " found " << (fileInfo ? fileInfo->get_name() : std::string("non")) << std::endl;
-        if (!fileInfo) {
-            break;
+    try {
+        if (!m_entries) {   // do this lazily to catch error
+            m_entries = m_scanDir->enumerate_children("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
         }
-        auto activFile = m_scanDir->get_child(fileInfo->get_name());
-        Gio::FileType fileType = activFile->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
-        if (m_provider->useSubDirs() && fileType == Gio::FileType::FILE_TYPE_DIRECTORY) {
-            return activFile;
+        while (true) {
+            auto fileInfo = m_entries->next_file();
+            //std::cout << "ArchivFileProvider::scanEntries " << m_scanDir->get_path()
+            //          << " found " << (fileInfo ? fileInfo->get_name() : std::string("non")) << std::endl;
+            if (!fileInfo) {
+                break;
+            }
+            auto activFile = m_scanDir->get_child(fileInfo->get_name());
+            Gio::FileType fileType = activFile->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+            if (m_provider->useSubDirs() && fileType == Gio::FileType::FILE_TYPE_DIRECTORY) {
+                return activFile;
+            }
+            if (fileType == Gio::FileType::FILE_TYPE_REGULAR
+             && m_provider->isFilterEntry(activFile)) {
+                return activFile;
+            }
         }
-        if (fileType == Gio::FileType::FILE_TYPE_REGULAR
-         && m_provider->isFilterEntry(activFile)) {
-            return activFile;
+    }
+    catch (const Gio::Error& err) {
+        if (m_provider->isFailForScanError()) {
+            auto errWhat = std::string(err.what());
+            auto path = m_scanDir->get_path();
+            auto msg = psc::fmt::vformat(_("Error {} scanning {}"),
+                            psc::fmt::make_format_args(errWhat, path));
+            throw(ArchivException(msg));
+        }
+        else {
+            std::cout << "ArchivDirWalker::scanEntries error " << err.what() << " but continue!" << std::endl;
         }
     }
     return Glib::RefPtr<Gio::File>();

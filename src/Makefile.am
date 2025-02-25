@@ -6,6 +6,7 @@ AM_CPPFLAGS = \
         -DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
         -DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	-I"$(srcdir)"/../srcLib \
+	$(ARCHIVE_CFLAGS) \
 	$(VTE_CFLAGS) \
 	$(GENERICIMG_CFLAGS) \
 	$(GLIBMM_CFLAGS) \
@@ -21,6 +22,7 @@ varsel_LDFLAGS = @EXTRA_LDFLAGS@
 
 varsel_LDADD =  \
  	../srcLib/libcommon.a \
+	$(ARCHIVE_LIBS) \
 	$(VTE_LIBS) \
 	$(GENERICIMG_LIBS) \
 	$(GLIBMM_LIBS) \

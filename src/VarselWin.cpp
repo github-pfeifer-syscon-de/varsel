@@ -1,6 +1,6 @@
 /* -*- Mode: C; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 20204rpf
+ * Copyright (C) 2024 rpf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

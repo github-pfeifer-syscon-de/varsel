@@ -76,3 +76,5 @@
 /srcEdit/.deps/
 /srcEdit/.libs/
 /srcLib/.deps/
+/PKGBUILD
+/src/configure.ac

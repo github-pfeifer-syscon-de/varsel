@@ -38,6 +38,7 @@ public:
         if (file->get_basename().ends_with(".cpp")
          || file->get_basename().ends_with(".hpp")) {
             ++m_createEntries;
+            std::cout << "TestArchivProvider::isFilterEntry using " << file->get_path() << std::endl;
             return true;
         }
         return false;
@@ -120,7 +121,10 @@ void
 ArchivTest::archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg)
 {
     m_final = archivSummary.getEntries() ;
-    std::cout << "summary " << archivSummary.getEntries() << " error " << errMsg << std::endl;
+    std::cout << "summary " << archivSummary.getEntries() << std::endl;
+    if (!errMsg.empty()) {
+        std::cout << "Error " << errMsg << "!!!" << std::endl;
+    }
 }
 
 

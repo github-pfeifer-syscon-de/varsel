@@ -25,6 +25,7 @@ va_edit_LDADD =  \
 	$(GENERICIMG_LIBS) \
 	$(GLIBMM_LIBS) \
 	$(SRCVIEW_LIBS) \
+	$(ARCHIV_LIBS) \
 	$(GTKMM_LIBS)
 
 va_edit_SOURCES = resources.c \

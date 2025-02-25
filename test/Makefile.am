@@ -9,7 +9,8 @@ AM_CPPFLAGS = \
 	$(GLIBMM_CFLAGS) \
 	$(GENERICIMG_CFLAGS) \
 	$(LIBGIT2_CFLAGS) \
-	-I ../src
+	-I ../srcList \
+	-I ../srcLib
 
 AM_CFLAGS= \
 	-Wall \
@@ -25,22 +26,22 @@ AM_LDFLAGS =
 check_PROGRAMS = git_test worker_test archiv_test
 
 git_test_LDADD =  \
-	../src/varsel-GitRepository.o \
+	../srcList/va_list-GitRepository.o \
 	$(GLIBMM_LIBS) \
 	$(GENERICIMG_LIBS) \
 	$(LIBGIT2_LIBS)
 
-git_test_SOURCES =  Git_test.cpp
+git_test_SOURCES = Git_test.cpp
 
 worker_test_LDADD = \
-	../src/varsel-ThreadWorker.o \
+	../srcLib/libcommon.a \
 	$(GLIBMM_LIBS) \
 	$(GENERICIMG_LIBS)
 
 worker_test_SOURCES = WorkerTest.cpp
 
 archiv_test_LDADD = \
-	../src/varsel-Archiv.o \
+	../srcLib/libcommon.a \
 	$(GLIBMM_LIBS) \
 	$(GENERICIMG_LIBS) \
 	$(ARCHIVE_LIBS)
