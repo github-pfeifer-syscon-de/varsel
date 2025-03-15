@@ -267,6 +267,7 @@ VarselList::on_hide()
     auto config = getKeyFile();
     config->setInteger(m_data->getConfigGroup(), PANED_POS, pos);
     m_kfTableManager->saveConfig(this);
+    save_config();
     Gtk::Window::on_hide();
 }
 

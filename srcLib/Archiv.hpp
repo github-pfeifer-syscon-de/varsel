@@ -24,6 +24,14 @@
 #include <giomm.h>
 #include <psc_i18n.hpp>
 
+
+enum class LinkType
+{
+      None
+    , Symbolic
+    , Hard
+};
+
 class ArchivEntry
 {
 public:
@@ -40,10 +48,49 @@ public:
     {
         m_path = path;
     }
+    Glib::ustring getLinkPath()
+    {
+        return m_link;
+    }
+    LinkType getLinkType()
+    {
+        return m_linkType;
+    }
     mode_t getMode()
     {
         return m_mode;
     }
+    Glib::ustring getModeName()
+    {
+        Glib::ustring stype;
+        if (getMode() > 0) {
+            switch (getMode()) {
+            case AE_IFREG:  // Regular file
+                stype = _("File");
+                break;
+            case AE_IFLNK:  // link
+                stype = _("Link");
+                break;
+            case AE_IFSOCK: // Socket
+                stype = _("Socket");
+                break;
+            case AE_IFCHR:  // Character device
+                stype = _("Character device");
+                break;
+            case AE_IFBLK:  // Block device
+                stype = _("Block device");
+                break;
+            case AE_IFDIR:  // Directory
+                stype = _("Directory");
+                break;
+            case AE_IFIFO:  // Named pipe (fifo)
+                stype = _("Fifo");
+                break;
+            }
+        }
+        return stype;
+    }
+
     void setMode(int mode)
     {
         m_mode = mode;
@@ -88,8 +135,31 @@ public:
     {
         m_size = size;
     }
+    virtual int handleContent(struct archive* archiv)
+    {
+        int ret;
+        if (m_size > 0l) {
+            ret = archive_read_data_skip(archiv);
+        }
+        else {  // fake reading to accumulate size
+            const void *buff;
+            size_t len{0l};
+            off_t offset{0l};
+            do {
+                ret = archive_read_data_block(archiv, &buff, &len, &offset);
+                m_size += len;
+            } while (ret == ARCHIVE_OK);
+            if (ret == ARCHIVE_EOF) {  // end of entry as it seems
+                ret = ARCHIVE_OK;
+            }
+        }
+        return ret;
+    }
+
 private:
     Glib::ustring m_path;
+    Glib::ustring m_link;
+    LinkType m_linkType{LinkType::None};
     mode_t m_mode{0};
     mode_t m_permission{0};
     Glib::ustring m_user;
@@ -97,6 +167,7 @@ private:
     time_t m_created{0};
     time_t m_modified{0};
     la_int64_t m_size{0};
+    la_int64_t m_sum{0};
 };
 
 class ArchivSummary
@@ -126,10 +197,6 @@ public:
     virtual void archivUpdate(const std::shared_ptr<ArchivEntry>& entry) = 0;
     virtual void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) = 0;
 protected:
-    virtual int handleContent(struct archive* archiv)
-    {
-        return archive_read_data_skip(archiv);
-    }
 
 private:
 

@@ -106,31 +106,8 @@ ArchiveDataSource::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
     ++m_entries;
     auto file = Gio::File::create_for_path("/" + entry->getPath()); // make absolute otherwise, local path will be prefixed
     Glib::ustring path,name;
-    Glib::ustring stype;
+    Glib::ustring stype = entry->getModeName();
     if (entry->getMode() > 0) {
-        switch (entry->getMode()) {
-        case AE_IFREG:  // Regular file
-            stype = "File";
-            break;
-        case AE_IFLNK:  // Symbolic link
-            stype = "Link";
-            break;
-        case AE_IFSOCK: // Socket
-            stype = "Socket";
-            break;
-        case AE_IFCHR:  // Character device
-            stype = "Character device";
-            break;
-        case AE_IFBLK:  // Block device
-            stype = "Block device";
-            break;
-        case AE_IFDIR:  // Directory
-            stype = "Directory";
-            break;
-        case AE_IFIFO:  // Named pipe (fifo)
-            stype = "Fifo";
-            break;
-        }
         if (entry->getMode() == AE_IFDIR) {
             path = file->get_parse_name();
             name = "";

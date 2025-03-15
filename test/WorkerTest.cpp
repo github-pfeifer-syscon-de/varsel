@@ -21,6 +21,7 @@
 #include <thread>
 
 #include "WorkerTest.hpp"
+#include "VarselConfig.hpp"
 
 using namespace std::chrono_literals; // ns, us, ms, s, h, etc.
 
@@ -53,6 +54,23 @@ TestApp::on_activate()
 }
 
 
+bool
+TestApp::match(const Gdk::RGBA& color, const Gdk::RGBA& color2)
+{
+    if (color.get_red_u() != color2.get_red_u()
+     || color.get_green_u() != color2.get_green_u()
+     || color.get_blue_u() != color2.get_blue_u()
+     || color.get_alpha_u() != color2.get_alpha_u()) {
+        std::cout << "color missmatch"
+                  << " red " << color.get_red_u() << ", " << color2.get_red_u()
+                  << " green " << color.get_green_u() << ", " << color2.get_green_u()
+                  << " blue " << color.get_blue_u() << ", " << color2.get_blue_u()
+                  << " alpha " << color.get_alpha_u() << ", " << color2.get_alpha_u() << std::endl;
+        return false;
+    }
+    return true;
+}
+
 int
 TestApp::getResult()
 {
@@ -74,6 +92,21 @@ TestApp::getResult()
         std::cout << "Except expected true got " << std::boolalpha << m_workerExcept->m_error << std::endl;
         return 3;
     }
+    // Simply add the config test
+    VarselConfig conf = VarselConfig("testing.conf");
+    Gdk::RGBA color{"rgb(192,128,192)"};
+    conf.setColor("abc", "color", color);
+    Gdk::RGBA color2 = conf.getColor("abc", "color");
+    if (!match(color, color2)) {
+        return 4;
+    }
+    Gdk::RGBA color3{"rgba(192,192,128,0.345)"};
+    conf.setColor("abc", "color2", color3);
+    Gdk::RGBA color4 = conf.getColor("abc", "color2");
+    if (!match(color3, color4)) {
+        return 5;
+    }
+
     return 0;
 }
 
@@ -117,7 +150,7 @@ void
 WorkerExcept::done()
 {
     try {
-        auto r = getResult();
+        getResult();
     }
     catch (const std::exception& exc) {
         std::cout << "WorkerExcept::done " << exc.what() << std::endl;

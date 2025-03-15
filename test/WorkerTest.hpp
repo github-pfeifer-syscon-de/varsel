@@ -20,6 +20,7 @@
 
 #include <glibmm.h>
 #include <giomm.h>
+#include <gdkmm.h>
 #include <memory>
 
 #include "ThreadWorker.hpp"
@@ -64,6 +65,7 @@ public:
     virtual ~TestApp() = default;
 
     void on_activate() override;
+    bool match(const Gdk::RGBA& color, const Gdk::RGBA& color2);
     int getResult();
 protected:
     void start();

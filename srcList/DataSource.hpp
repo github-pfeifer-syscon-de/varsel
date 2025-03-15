@@ -94,7 +94,10 @@ public:
     {
         Glib::DateTime date;
         iter->get_value(m_col.index(), date);
-        Glib::ustring dateText = date.format("%x %X");
+        Glib::ustring dateText;
+        if (date) {
+            dateText = date.format("%x %X");
+        }
         auto textRend = static_cast<Gtk::CellRendererText*>(rend);
         textRend->property_text() = dateText;
     }

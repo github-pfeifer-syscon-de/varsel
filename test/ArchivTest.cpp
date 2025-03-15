@@ -57,7 +57,8 @@ ArchivTest::readTest()
 {
 //    auto home = Glib::get_home_dir();
 //    auto homeDir = Gio::File::create_for_path(home);
-//    auto file = homeDir->get_child("");   // if you want to check readability for a format put it here
+//    auto file = homeDir->get_child("Downloads/ArchLinuxARM-rpi-aarch64-latest.tar.gz");   // if you want to check readability for a format put it here
+//    // try to fix ./usr/include/et/com_err.h
 //    Archiv archive(file);
 //    try {
 //        archive.read(this);
@@ -69,7 +70,6 @@ ArchivTest::readTest()
 //        std::cout << exc.what() << std::endl;
 //        return false;
 //    }
-
     return true;
 }
 
@@ -114,7 +114,18 @@ void
 ArchivTest::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
 {
     ++m_entries;
-    std::cout << "entry " << entry->getPath() << std::endl;
+            //  << " " << std::hex << entry->getMode() << std::dec
+    std::cout << "entry"
+              << " type " << entry->getModeName()
+              << " user " << entry->getUser()
+              << ":" << entry->getGroup()
+              << " size " << entry->getSize()
+              << " path " << entry->getPath() << std::endl;
+    if (entry->getLinkType() != LinkType::None) {
+        std::cout << "   link " << entry->getLinkPath()
+                  << " type " <<  (entry->getLinkType() != LinkType::Hard ? "Hard" : "Sym")
+                  << std::endl;
+    }
 }
 
 void

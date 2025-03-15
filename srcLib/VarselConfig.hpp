@@ -19,7 +19,6 @@
 #pragma once
 
 #include <glibmm.h>
-#include <gdkmm.h>
 
 #include <KeyConfig.hpp>
 
@@ -30,11 +29,6 @@ public:
     VarselConfig(const char* conf);
     explicit VarselConfig(const VarselConfig& orig) = delete;
     virtual ~VarselConfig() = default;
-
-    Gdk::RGBA getColor(const char* grp, const Glib::ustring& key);
-    void setColor(const char* grp, const Glib::ustring& key, const Gdk::RGBA& rgba);
-
-    static constexpr auto COLOR_SCALE = 255.0;
 
 private:
 

@@ -28,31 +28,3 @@ VarselConfig::VarselConfig(const char* conf)
 
 }
 
-Gdk::RGBA
-VarselConfig::getColor(const char* grp, const Glib::ustring& key)
-{
-    Gdk::RGBA rgba{getString(grp, key, "rgba(0,0,0,1)")};
-    std::cout << "VarselConfig::getColor " << getString(grp, key, "rgba(0,0,0,1)")
-              << " red " << rgba.get_red()
-              << " green " << rgba.get_green()
-              << " blue " << rgba.get_blue()
-              << " alpha " << rgba.get_alpha()
-              << std::endl;
-    return rgba;
-}
-
-void
-VarselConfig::setColor(const char* grp, const Glib::ustring& key, const Gdk::RGBA& rgba)
-{
-    auto backgrdHtml = psc::fmt::format("rgba({},{},{},{:.5f})",
-                               static_cast<int>(rgba.get_red() * COLOR_SCALE)
-                             , static_cast<int>(rgba.get_green() * COLOR_SCALE)
-                             , static_cast<int>(rgba.get_blue() * COLOR_SCALE)
-                             , rgba.get_alpha());
-    std::cout << "VarselConfig::setColor " << backgrdHtml
-              << " red " << rgba.get_red()
-              << " green " << rgba.get_green()
-              << " blue " << rgba.get_blue()
-              << " alpha " << rgba.get_alpha() << std::endl;
-    setString(grp, key, backgrdHtml);
-}

@@ -11,7 +11,7 @@ this might provide some basic insight...
 ## Setup
 
 The terminal needs to support directory detection
-have to include in e.g. ~/.bashrc
+so you have to include in e.g. ~/.bashrc
 after this part:
 <pre>
 # If not running interactively, don't do anything

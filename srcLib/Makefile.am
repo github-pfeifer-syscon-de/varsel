@@ -19,8 +19,6 @@ libcommon_a_SOURCES = \
 	EventBus.hpp \
 	Archiv.cpp \
 	Archiv.hpp \
-	ThreadWorker.cpp \
-	ThreadWorker.hpp \
 	VarselConfig.cpp \
 	VarselConfig.hpp \
 	ListFactory.cpp \

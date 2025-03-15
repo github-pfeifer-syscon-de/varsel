@@ -29,11 +29,25 @@ ArchivEntry::ArchivEntry()
 ArchivEntry::ArchivEntry(struct archive_entry *entry)
 {
     m_path = archive_entry_pathname_utf8(entry);
-    if (archive_entry_perm_is_set(entry)) {
-        m_permission = archive_entry_perm(entry);
-    }
     if (archive_entry_filetype_is_set(entry)) {
         m_mode = archive_entry_filetype(entry);
+    }
+    if (archive_entry_symlink_utf8(entry)) {
+        m_link = archive_entry_symlink_utf8(entry);
+        m_linkType = LinkType::Symbolic;
+        if (m_mode == 0) {
+            m_mode = AE_IFLNK;  // this may not be provided by archive (symlink?)
+        }
+    }
+    else if (archive_entry_hardlink_is_set(entry)) {
+        m_link = archive_entry_hardlink(entry);
+        m_linkType = LinkType::Hard;
+        if (m_mode == 0) {
+            m_mode = AE_IFLNK;  // this may not be provided by archive (symlink?)
+        }
+    }
+    if (archive_entry_perm_is_set(entry)) {
+        m_permission = archive_entry_perm(entry);
     }
     if (archive_entry_size_is_set(entry)) {
         m_size = archive_entry_size(entry);
@@ -146,7 +160,7 @@ Archiv::read(ArchivListener* listener)
             // the entry seems a internal structure as it doesn't change so no need to free as it seems
             auto archivEntry = std::make_shared<ArchivEntry>(entry);
             listener->archivUpdate(archivEntry);
-            int ret = listener->handleContent(archiv);
+            int ret = archivEntry->handleContent(archiv);
             if (ret != ARCHIVE_OK) {
                 auto archErr = archive_error_string(archiv);
                 msg = archErr ? std::string(archErr) : psc::fmt::vformat(_("Archiv error {}"), psc::fmt::make_format_args(ret));
