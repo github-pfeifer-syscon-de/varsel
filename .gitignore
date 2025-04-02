@@ -78,3 +78,6 @@
 /srcLib/.deps/
 /PKGBUILD
 /src/configure.ac
+/test/ccls_test.log
+/test/ccls_test.trs
+/test/ccls_test

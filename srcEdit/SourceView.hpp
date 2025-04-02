@@ -18,46 +18,31 @@
 
 #pragma once
 
-#include <gtksourceview/gtksource.h>
 #include <gtkmm.h>
 #include <vector>
+#include <map>
 #include <memory>
 
+#include "CCLangServer.hpp"
 #include "EventBus.hpp"
-
+#include "SourceFile.hpp"
 
 class EditApp;
 class SourceView;
+class SourceFile;
 
-class SourceFile
+class SourceDocumentRef
+: public CclsDocumentRef
 {
 public:
-    SourceFile(EditApp* application);
-    virtual ~SourceFile() = default;
+    SourceDocumentRef(const Glib::RefPtr<Gio::File>& file, const TextPos& pos, SourceView* sourceView, const Glib::ustring& method);
+    explicit SourceDocumentRef(const SourceDocumentRef& orig) = delete;
+    virtual ~SourceDocumentRef() = default;
 
-    Gtk::Widget* buildSourceView(SourceView* win, const Glib::RefPtr<Gio::File>& eventItem);
-    void applyStyle(const std::string& style, const std::string& fontDesc);
-    Glib::ustring getLabel();
-    static GtkSourceLanguage* getSourceLanguage(const std::shared_ptr<EventItem>& item);
-    void saveAs(SourceView* win);
-    void save(SourceView *win);
-    void load(SourceView *win);
-    bool checkSave(SourceView* win);
+    void result(const std::shared_ptr<psc::json::JsonValue>& json) override;
 
-    static constexpr size_t BUF_SIZE{8u*1024u};
-
-protected:
-    void save(SourceView* win, const Glib::RefPtr<Gio::File>& file);
-    void load(SourceView* win, const Glib::RefPtr<Gio::File>& file);
-    Glib::RefPtr<Gio::File> selectFile(SourceView* win, bool save);
-
-    Glib::ustring getExtension();
 private:
-    EditApp* m_application;
-    GtkSourceBuffer* m_buffer{nullptr};
-    GtkSourceView* m_sourceView{nullptr};
-    std::shared_ptr<EventItem> m_eventItem;
-    Glib::RefPtr<Gtk::CssProvider> m_provider;
+    SourceView* m_sourceView;
 };
 
 class SourceView
@@ -82,17 +67,20 @@ public:
         return m_application;
     }
     void showFiles(const std::vector<Glib::RefPtr<Gio::File>>& matchingFiles);
-
+    void showDocumentRef(SourceFile* sourceFile, const TextPos& pos, const Glib::ustring& method);
+    void gotoFilePos(const Glib::RefPtr<Gio::File>& file, const TextPos& pos);
+    Glib::ustring mapLanguage(const Glib::ustring& viewLanguage);
 
 protected:
     void createActions();
-    void addFile(const Glib::RefPtr<Gio::File>& item);
-
-
+    std::shared_ptr<SourceFile> addFile(const Glib::RefPtr<Gio::File>& item);
+    std::shared_ptr<SourceFile> findView(const Glib::RefPtr<Gio::File>& item);
+    int getIndex(const std::shared_ptr<SourceFile>& view);
 private:
     EditApp* m_application;
     Gtk::Notebook* m_notebook{nullptr};
     std::vector<std::shared_ptr<SourceFile>> m_files;
+    std::map<std::string, PtrCcLangServer> m_ccLangServers;
 };
 
 

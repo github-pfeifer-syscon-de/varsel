@@ -27,9 +27,8 @@ AC_MSG_NOTICE([host_os $host_os])
 
 dnl don't repeat dependencies
 dnl PKG_CHECK_MODULES([GTKMM], [gtkmm-3.0])
-dnl PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4 giomm-2.4])
 
-PKG_CHECK_MODULES([GENERICIMG],[genericimg >= 0.4.1])
+PKG_CHECK_MODULES([GENERICIMG],[genericimg >= 0.4.2])
 
 PKG_CHECK_MODULES([VTE],[vte-2.91 >= 0.78.0])
 

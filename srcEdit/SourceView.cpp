@@ -24,288 +24,40 @@
 #include "EditApp.hpp"
 #include "PrefSourceView.hpp"
 
-/*
- * slightly customized file chooser
- */
-class VarselFileChooser
-: public Gtk::FileChooserDialog {
-public:
-    VarselFileChooser(Gtk::Window *win, bool save)
-    : Gtk::FileChooserDialog(*win
-                            , save
-                            ? _("Save File")
-                            : _("Open File")
-                            , save
-                            ? Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SAVE
-                            : Gtk::FileChooserAction::FILE_CHOOSER_ACTION_OPEN
-                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT)
-    {
-        add_button(_("_Cancel"), Gtk::RESPONSE_CANCEL);
-        add_button(save
-                    ? _("_Save")
-                    : _("_Open"), Gtk::RESPONSE_ACCEPT);
 
 
-    }
-
-    virtual ~VarselFileChooser() = default;
-protected:
-private:
-};
-
-
-SourceFile::SourceFile(EditApp* application)
-: m_application{application}
+SourceDocumentRef::SourceDocumentRef(const Glib::RefPtr<Gio::File>& file, const TextPos& pos, SourceView* sourceView, const Glib::ustring& method)
+: CclsDocumentRef::CclsDocumentRef(file, pos, method)
+, m_sourceView{sourceView}
 {
 }
 
 void
-SourceFile::saveAs(SourceView* win)
+SourceDocumentRef::result(const std::shared_ptr<psc::json::JsonValue>& json)
 {
-        //filter->set_name("Text");
-    auto  file = selectFile(win, true);
-    if (file) {
-        bool doSave = true;
-        if (file->query_exists()) {
-            auto path = file->get_path();
-            int ret = win->showMessage(psc::fmt::vformat(_("Replace file {}?"),
-                                          psc::fmt::make_format_args(path)), Gtk::MessageType::MESSAGE_QUESTION);
-            doSave = ret == Gtk::ResponseType::RESPONSE_YES;
-        }
-        if (doSave) {
-            save(win, file);
-        }
-
-    }
-
-}
-
-Glib::RefPtr<Gio::File>
-SourceFile::selectFile(SourceView* win, bool save)
-{
-    VarselFileChooser fileChooser{win, save};
-    if (save) {     // only use filter on save-as
-        Glib::RefPtr<Gtk::FileFilter> filter = Gtk::FileFilter::create();
-        auto fileInfo = m_eventItem->getFileInfo();
-        if (!fileInfo->get_content_type().empty()) {
-            filter->add_mime_type(fileInfo->get_content_type());
-        }
-        Glib::ustring ext = getExtension();
-        if (!ext.empty()) {
-            filter->add_pattern("*." + ext);
-        }
-        fileChooser.set_filter(filter);
-        fileChooser.set_file(m_eventItem->getFile());
-    }
-    else {
-        if (m_eventItem && m_eventItem->getFile()) {       // if possible use directory
-            fileChooser.set_file(m_eventItem->getFile()->get_parent());
+    if (json->isArray()) {
+        auto arr = json->getArray();
+        if (arr->getSize() > 0) {
+            auto val = arr->get(0);
+            auto obj = val->getObject();
+            auto uri = obj->getValue("uri");
+            auto rangeVal = obj->getValue("range");
+            auto range = rangeVal->getObject();
+            auto startVal = range->getValue("start");
+            auto start = startVal->getObject();
+            auto line = start->getValue("line");
+            auto character = start->getValue("character");
+            Glib::RefPtr<Gio::File> file = Gio::File::create_for_uri(uri->getString());
+            TextPos pos{
+                static_cast<int>(line->getInt()),
+                static_cast<int>(character->getInt())};
+            m_sourceView->gotoFilePos(file, pos);
+            return;
         }
     }
-    int ret = fileChooser.run();
-    if (ret == Gtk::ResponseType::RESPONSE_ACCEPT) {
-        return fileChooser.get_file();
-    }
-    return Glib::RefPtr<Gio::File>();
+    std::cout << "Empty/unknown structure for definition!" << std::endl;
+    // popup ?
 }
-
-
-void
-SourceFile::save(SourceView* win)
-{
-    save(win, m_eventItem->getFile());
-}
-
-void
-SourceFile::load(SourceView* win)
-{
-    auto file = selectFile(win, false);
-    if (file) {
-        checkSave(win);
-        load(win, file);
-        m_eventItem = std::make_shared<EventItem>(file);
-        win->changeLabel(this);
-    }
-}
-
-bool
-SourceFile::checkSave(SourceView* win)
-{
-    bool changed = gtk_text_buffer_get_modified(GTK_TEXT_BUFFER(m_buffer));
-    if (changed) {
-        auto file = m_eventItem->getFile();
-        auto path = file->get_path();
-        int ret = win->showMessage(psc::fmt::vformat(_("Save file {}?"),
-                                      psc::fmt::make_format_args(path)), Gtk::MessageType::MESSAGE_QUESTION);
-        if (ret == Gtk::ResponseType::RESPONSE_YES) {
-            save(win, file);
-            return true;
-        }
-    }
-    return false;
-}
-
-void
-SourceFile::save(SourceView* win, const Glib::RefPtr<Gio::File>& file)
-{
-    GtkTextIter start;
-    GtkTextIter end;
-    gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(m_buffer), &start, &end);
-    char* text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(m_buffer), &start, &end, false);
-    std::cout << "Got text " << strlen(text) << std::endl;
-    try {
-        // use no etag
-        auto output = file->replace("", true, Gio::FileCreateFlags::FILE_CREATE_REPLACE_DESTINATION);
-        output->write(text, strlen(text));
-        output->close();
-    }
-    catch (const Glib::Error& exc) {
-        auto path = file->get_path();
-        win->showMessage(psc::fmt::vformat(_("Error {} saving {}"),
-                            psc::fmt::make_format_args(exc, path)));
-    }
-    g_free(reinterpret_cast<void*>(text));
-}
-
-void
-SourceFile::load(SourceView* win, const Glib::RefPtr<Gio::File>& file)
-{
-    using BUFFER_ARRAY = std::array<gchar, BUF_SIZE>;
-    //Glib::ustring cont;
-    try {
-        auto buff = std::make_unique<BUFFER_ARRAY>();    // better read in steps?
-        auto inputStream = file->read();
-        GtkTextIter iter;
-        gtk_text_buffer_get_start_iter(GTK_TEXT_BUFFER(m_buffer), &iter);
-        gssize len;
-        while ((len = inputStream->read(buff.get(), buff->size())) > 0) {
-            gtk_text_buffer_insert(GTK_TEXT_BUFFER(m_buffer), &iter, reinterpret_cast<const gchar*>(buff.get()), len);
-        }
-        inputStream->close();
-        //cont = Glib::file_get_contents(file->get_path());
-    }
-    catch (const Glib::Error& err) {
-        auto path = file->get_path();
-        win->showMessage(psc::fmt::vformat(_("Error {} loading {}!"),
-                              psc::fmt::make_format_args(err, path)));
-    }
-    gtk_text_buffer_set_modified(GTK_TEXT_BUFFER(m_buffer), false); // as no modification has occurred yet
-}
-
-Glib::ustring
-SourceFile::getExtension()
-{
-    Glib::ustring ext;
-    auto dispName = m_eventItem->getFileInfo()->get_display_name();
-    auto pos = dispName.find_last_of('.');
-    if (pos != dispName.npos) {
-        ++pos;
-        ext = dispName.substr(pos);
-    }
-    return ext;
-}
-
-Gtk::Widget*
-SourceFile::buildSourceView(SourceView* win, const Glib::RefPtr<Gio::File>& file)
-{
-    auto scrollView = Gtk::make_managed<Gtk::ScrolledWindow>();
-    GtkSourceLanguage* srcLang{nullptr};
-    if (file) {
-        m_eventItem = std::make_shared<EventItem>(file);
-        // no free langManager,srcLang
-        srcLang = getSourceLanguage(m_eventItem);
-    }
-    if (srcLang) {
-        m_buffer = gtk_source_buffer_new_with_language(srcLang);
-    }
-    else {
-        m_buffer = gtk_source_buffer_new(nullptr);
-    }
-    if (file) {
-        load(win, file);
-    }
-    gtk_source_buffer_set_highlight_syntax(m_buffer, true);
-    m_sourceView = GTK_SOURCE_VIEW(gtk_source_view_new_with_buffer(m_buffer));
-    gtk_source_view_set_show_line_numbers(m_sourceView, true);
-    //gtk_source_view_set_show_line_marks(m_sourceView, true);
-    //m_defaultFont = pango_font_description_copy(gtk_source_view_get_font(m_sourceView));
-
-    gtk_container_add(GTK_CONTAINER(scrollView->gobj()), GTK_WIDGET(m_sourceView));
-    return scrollView;
-}
-
-GtkSourceLanguage*
-SourceFile::getSourceLanguage(const std::shared_ptr<EventItem>& item)
-{
-    GtkSourceLanguage* srcLang{nullptr};
-    auto file = item->getFile();
-    auto info = item->getFileInfo();
-    if (info->get_file_type() == Gio::FileType::FILE_TYPE_REGULAR) {
-        auto content = info->get_content_type();
-        auto base = file->get_basename();
-        auto langManager = gtk_source_language_manager_get_default();
-        srcLang = gtk_source_language_manager_guess_language(langManager, base.c_str(), content.c_str());
-    }
-    return srcLang;
-}
-
-void
-SourceFile::applyStyle(const std::string& style, const std::string& fontDesc)
-{
-    // no free styleManager,scheme
-    auto styleManager = gtk_source_style_scheme_manager_get_default();
-    auto scheme = gtk_source_style_scheme_manager_get_scheme(styleManager, style.c_str());   //
-    if (scheme && !style.empty()) {
-        gtk_source_buffer_set_style_scheme(m_buffer, scheme);
-    }
-    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(m_sourceView));
-    if (m_provider) {   // remove previous style
-        gtk_style_context_remove_provider(context,
-                                 GTK_STYLE_PROVIDER(m_provider->gobj()));
-        m_provider.reset();
-    }
-    if (!fontDesc.empty()) {
-        m_provider = Gtk::CssProvider::create();
-        // does not work
-        //auto context = gtk_widget_get_pango_context(GTK_WIDGET(m_sourceView));
-        //pango_context_set_font_description(context, desc.gobj());
-        Pango::FontDescription desc = Pango::FontDescription(fontDesc);
-        Glib::ustring size;
-        if (desc.get_set_fields() & Pango::FontMask::FONT_MASK_SIZE) {
-            size.reserve(16);
-            size += std::to_string(static_cast<int>((float)desc.get_size() / 1024.0f));
-            size += desc.get_size_is_absolute() ? "px" : "pt";
-        }
-        Glib::ustring css = Glib::ustring::sprintf("#cssView {\n"
-          "  font: %s \"%s\", Monospace;\n"
-          "}", size, desc.get_family());
-        //std::cout << "SourceFile::applyStyle"
-        //          << fontDesc
-        //          << std::hex << " fld " << desc.get_set_fields() << std::dec
-        //          << " fam " << desc.get_family()
-        //          << " siz " << (float)desc.get_size() / 1024.0f
-        //          << " var " << desc.get_variant()
-        //          << " wei " << desc.get_weight()
-        //          << " sty " << desc.get_style()
-        //          << " css " << css << std::endl;
-        m_provider->load_from_data(css);
-        gtk_widget_set_name(GTK_WIDGET(m_sourceView), "cssView");
-        gtk_style_context_add_provider(context,
-                                 GTK_STYLE_PROVIDER(m_provider->gobj()),
-                                 GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    }
-}
-
-Glib::ustring
-SourceFile::getLabel()
-{
-    if (m_eventItem) {
-        auto fileInfo = m_eventItem->getFileInfo();
-        return fileInfo->get_display_name();
-    }
-    return _("New");
-}
-
 
 SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, EditApp* varselApp)
 : Gtk::ApplicationWindow(cobject)
@@ -319,11 +71,11 @@ SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     set_default_size(640, 480);
 }
 
-void
+std::shared_ptr<SourceFile>
 SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
 {
-    auto sourceFile = std::make_shared<SourceFile>(m_application);
-    auto widget = sourceFile->buildSourceView(this, item);
+    auto sourceFile = std::make_shared<SourceFile>(this);
+    auto widget = sourceFile->buildSourceView(item);
     m_notebook->append_page(*widget, sourceFile->getLabel());
 
     auto settings = m_application->getKeyFile();
@@ -339,8 +91,51 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
     sourceFile->applyStyle(style, fontDesc);
 
     widget->show_all();
-    m_files.emplace_back(std::move(sourceFile));
+    // create these early as init takes some time
+    auto language = mapLanguage(sourceFile->getLanguage());
+    if (!language.empty()) {
+        auto dir = item->get_parent();
+        auto dotccls = dir->get_child(".ccls");
+        if (dotccls->query_exists()) {
+            // use only only one language server per source dir
+            auto langServIt = m_ccLangServers.find(dir->get_path());
+            if (langServIt == m_ccLangServers.end()) {
+                auto ccLangServer = std::make_shared<CcLangServer>();
+                auto init = std::make_shared<CclsInit>(dir);
+                ccLangServer->communicate(init);
+                m_ccLangServers.insert(std::make_pair(dir->get_path(), ccLangServer));
+            }
+        }
+    }
+    m_files.push_back(sourceFile);
+    return sourceFile;
 }
+
+std::shared_ptr<SourceFile>
+SourceView::findView(const Glib::RefPtr<Gio::File>& file)
+{
+    std::shared_ptr<SourceFile> src;
+    for (auto& view : m_files) {
+        if (view->getFile()->get_path() == file->get_path()) {
+            src = view;
+            break;
+        }
+    }
+    return src;
+}
+
+int
+SourceView::getIndex(const std::shared_ptr<SourceFile>& view)
+{
+    for (size_t i = 0; i < m_files.size(); ++i) {
+        auto v = m_files[i];
+        if (view == v) {
+            return i;
+        }
+    }
+    return 0;
+}
+
 
 void
 SourceView::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& matchingFiles)
@@ -433,7 +228,7 @@ SourceView::save(const Glib::VariantBase& val)
     std::cout << "SourceView::save"
               << " page " << page
               << " src " << srcFile->getLabel()  << std::endl;
-    srcFile->save(this);
+    srcFile->save();
 }
 
 void
@@ -444,7 +239,7 @@ SourceView::saveAs(const Glib::VariantBase& val)
     std::cout << "SourceView::saveAs"
               << " page " << page
               << " src " << srcFile->getLabel()  << std::endl;
-    srcFile->saveAs(this);
+    srcFile->saveAs();
 }
 
 void
@@ -453,7 +248,7 @@ SourceView::load(const Glib::VariantBase& val)
     std::cout << "SourceView::load" << std::endl;
     int page = m_notebook->get_current_page();
     auto srcFile = m_files[page];
-    srcFile->load(this);
+    srcFile->load();
 }
 
 void
@@ -462,7 +257,7 @@ SourceView::close(const Glib::VariantBase& val)
     std::cout << "SourceView::close" << std::endl;
     int page = m_notebook->get_current_page();
     auto srcFile = m_files[page];
-    srcFile->checkSave(this);
+    srcFile->checkSave();
     m_notebook->remove_page(page);
     m_files.erase(m_files.begin() + page);
     if (m_files.empty()) {
@@ -477,6 +272,71 @@ SourceView::quit(const Glib::VariantBase& val)
     std::cout << "SourceView::quit" << std::endl;
     hide();
 }
+
+// Convert the language used
+//   by source view to language server names
+//   at the moment only c++ is supported but
+//   if you are bold you may add more ...
+Glib::ustring
+SourceView::mapLanguage(const Glib::ustring& viewLanguage)
+{
+    if (StringUtils::startsWith(viewLanguage, "C++")) {  // "C++" "C++ Header"
+        return "cpp";
+    }
+    return "";
+}
+
+void
+SourceView::showDocumentRef(SourceFile* sourceFile, const TextPos& pos, const Glib::ustring& method)
+{
+    auto file = sourceFile->getFile();
+    auto language = mapLanguage(sourceFile->getLanguage());
+    if (!language.empty()) {
+        auto dir = file->get_parent();
+        auto dotccls = dir->get_child(".ccls");
+        if (!dotccls->query_exists()) {
+            auto path = dir->get_path();
+            showMessage(psc::fmt::vformat(_("To use language functions the file .ccls is required in {} and a ccls install")
+                                            , psc::fmt::make_format_args(path)));
+            return; // no lookup possible
+        }
+        std::cout << "SourceView::showDocumentRef"
+                  << " method " << method
+                  << " file " << file->get_path()
+                  << " pos " << pos.line << ", " << pos.character << std::endl;
+        auto ccLangServIt = m_ccLangServers.find(dir->get_path());
+        if (ccLangServIt != m_ccLangServers.end()) {
+            auto ccLangServer = (*ccLangServIt).second;
+           // it might be more appropriate to do this when showing/changing tab
+            auto open = std::make_shared<CclsOpen>(file, language, 0);
+            ccLangServer->communicate(open);
+
+            auto lookup = std::make_shared<SourceDocumentRef>(file, pos, this, method);
+            ccLangServer->communicate(lookup);
+
+            auto close = std::make_shared<CclsClose>(file);
+            ccLangServer->communicate(close);
+        }
+    }
+    else {
+        psc::log::Log::logAdd(psc::log::Level::Debug, psc::fmt::format("No definition for src {} lang {}", file->get_path(), language));
+    }
+}
+
+void
+SourceView::gotoFilePos(const Glib::RefPtr<Gio::File>& file, const TextPos& pos)
+{
+    std::cout << "SourceView::gotDefinition"
+              << " file " << file->get_path()
+              << " pos " << pos.line << ", " << pos.character << std::endl;
+    auto view = findView(file);
+    if (!view) {
+        view = addFile(file);
+    }
+    m_notebook->set_current_page(getIndex(view));
+    view->show(pos);
+}
+
 
 
 int

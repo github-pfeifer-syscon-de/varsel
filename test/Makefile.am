@@ -1,6 +1,6 @@
 
 
-TESTS = git_test worker_test archiv_test
+TESTS = git_test archiv_test ccls_test
 
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
@@ -10,6 +10,7 @@ AM_CPPFLAGS = \
 	$(GENERICIMG_CFLAGS) \
 	$(LIBGIT2_CFLAGS) \
 	-I ../srcList \
+	-I ../srcEdit \
 	-I ../srcLib
 
 AM_CFLAGS= \
@@ -23,7 +24,7 @@ AM_CXXFLAGS = -Wall \
 
 AM_LDFLAGS =
 
-check_PROGRAMS = git_test worker_test archiv_test
+check_PROGRAMS = git_test archiv_test ccls_test
 
 git_test_LDADD =  \
 	../srcList/va_list-GitRepository.o \
@@ -33,13 +34,6 @@ git_test_LDADD =  \
 
 git_test_SOURCES = Git_test.cpp
 
-worker_test_LDADD = \
-	../srcLib/libcommon.a \
-	$(GLIBMM_LIBS) \
-	$(GENERICIMG_LIBS)
-
-worker_test_SOURCES = WorkerTest.cpp
-
 archiv_test_LDADD = \
 	../srcLib/libcommon.a \
 	$(GLIBMM_LIBS) \
@@ -47,3 +41,12 @@ archiv_test_LDADD = \
 	$(ARCHIVE_LIBS)
 
 archiv_test_SOURCES = ArchivTest.cpp
+
+ccls_test_LDADD = \
+	../srcLib/libcommon.a \
+	../srcEdit/va_edit-RpcLaunch.o \
+	../srcEdit/va_edit-CCLangServer.o \
+	$(GLIBMM_LIBS) \
+	$(GENERICIMG_LIBS)
+
+ccls_test_SOURCES = CclsTest.cpp

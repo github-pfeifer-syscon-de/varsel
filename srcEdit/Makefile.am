@@ -34,6 +34,12 @@ va_edit_SOURCES = resources.c \
 	PrefSourceView.hpp \
 	EditApp.cpp \
 	EditApp.hpp \
+	RpcLaunch.cpp \
+	RpcLaunch.hpp \
+	CCLangServer.cpp \
+	CCLangServer.hpp \
+	SourceFile.cpp \
+	SourceFile.hpp \
 	SourceView.cpp \
 	SourceView.hpp
 

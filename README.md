@@ -8,7 +8,7 @@ If you are looking for some example how to
 integrate vte or sourceview with gtkmm
 this might provide some basic insight...
 
-## Setup
+## Terminal Setup
 
 The terminal needs to support directory detection
 so you have to include in e.g. ~/.bashrc
@@ -22,8 +22,28 @@ this call:
 . /etc/profile.d/vte.sh
 </pre>
 
-## Config
+## Editor Setup
 
 The terminal uses fixed keybindings at the moment:
 
 F9 open from terminal (with a selection it will be tried to be used as a filename)
+
+### Source edit language server support
+
+A simple implementation for the language server protocol was
+added to the editor. For this to work a .ccls file is needed in
+the source directory. It can be created by the make2ccls.sh
+script (it is included in genericImg). Use:
+<pre>
+cd genericImg/src
+../make2ccls.sh
+</pre>
+If the file was created in genericImg/src it is used
+as a test case here. And of course a ccls install provided
+by your distro is required as well
+(other implemenations for the language server protocol exist
+but i tested only ccls).
+
+Ctrl-D go to declation
+
+Ctrl-Shift-D go to definition
