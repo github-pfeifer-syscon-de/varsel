@@ -77,7 +77,7 @@ public:
 
     virtual const char* getMethod();
     std::shared_ptr<psc::json::JsonObj> create(RpcLaunch* rpcLaunch) override;
-    Glib::ustring getText();
+    virtual Glib::ustring getText();
 protected:
 
 private:
@@ -127,19 +127,49 @@ private:
     Glib::ustring m_method;
 };
 
+enum class CclsStatusKind
+{
+    None,
+    Begin,
+    Report,
+    End
+};
+
+class CclsStatusListener
+{
+public:
+    virtual void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent) = 0;
+    virtual void serverExited() = 0;
+};
 
 class CcLangServer
 : public RpcLaunch
 {
 public:
-    CcLangServer();
+    CcLangServer(const std::string& launch);
     explicit CcLangServer(const CcLangServer& orig) = delete;
     virtual ~CcLangServer() = default;
 
-    const std::vector<std::string> buildArgs() override;
+    const std::vector<Glib::ustring> buildArgs() override;
 
     void shutdown();
+    void handleStatus(int id, JsonObject* jsonObj) override;
+
+    void setStatusListener(CclsStatusListener *statusListener);
+    Glib::ustring getStatus();
+    Glib::ustring getMessage();
+    Glib::ustring getTitle();
+    gint64 getPercent();
+protected:
+    void decodeStatus(JsonObject* jsonObj);
+    void serverExited() override;
 private:
+    std::string m_launch;
+    Glib::ustring m_status;
+    Glib::ustring m_message;
+    Glib::ustring m_title;
+    gint64 m_percent{};
+    CclsStatusListener* m_statusListener{nullptr};
 };
 
 using PtrCcLangServer = std::shared_ptr<CcLangServer>;

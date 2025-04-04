@@ -31,6 +31,19 @@ class EditApp;
 class SourceView;
 class SourceFile;
 
+class SourceOpen
+: public CclsOpen
+{
+public:
+    SourceOpen(const Glib::RefPtr<Gio::File>& file, const Glib::ustring& lang, int version, const Glib::ustring& text);
+    explicit SourceOpen(const SourceOpen& orig) = delete;
+    virtual ~SourceOpen() = default;
+
+    Glib::ustring getText() override;
+private:
+    Glib::ustring m_text;
+};
+
 class SourceDocumentRef
 : public CclsDocumentRef
 {
@@ -47,6 +60,7 @@ private:
 
 class SourceView
 : public Gtk::ApplicationWindow
+, public CclsStatusListener
 {
 public:
     SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, EditApp* varselApp);
@@ -70,15 +84,19 @@ public:
     void showDocumentRef(SourceFile* sourceFile, const TextPos& pos, const Glib::ustring& method);
     void gotoFilePos(const Glib::RefPtr<Gio::File>& file, const TextPos& pos);
     Glib::ustring mapLanguage(const Glib::ustring& viewLanguage);
+    void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent);
+    void serverExited();
 
+    static constexpr auto LANGUAGESERVER_ARGS = "languageServerArgs";
 protected:
     void createActions();
-    std::shared_ptr<SourceFile> addFile(const Glib::RefPtr<Gio::File>& item);
+    std::shared_ptr<SourceFile> addFile(const Glib::RefPtr<Gio::File>& item, bool display = true);
     std::shared_ptr<SourceFile> findView(const Glib::RefPtr<Gio::File>& item);
     int getIndex(const std::shared_ptr<SourceFile>& view);
 private:
     EditApp* m_application;
     Gtk::Notebook* m_notebook{nullptr};
+    Gtk::ProgressBar* m_progress{nullptr};
     std::vector<std::shared_ptr<SourceFile>> m_files;
     std::map<std::string, PtrCcLangServer> m_ccLangServers;
 };

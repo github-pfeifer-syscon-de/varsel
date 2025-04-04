@@ -24,7 +24,17 @@
 #include "EditApp.hpp"
 #include "PrefSourceView.hpp"
 
+SourceOpen::SourceOpen(const Glib::RefPtr<Gio::File>& file, const Glib::ustring& lang, int version, const Glib::ustring& text)
+: CclsOpen::CclsOpen(file, lang, version)
+, m_text{text}
+{
+}
 
+Glib::ustring
+SourceOpen::getText()
+{
+    return m_text;
+}
 
 SourceDocumentRef::SourceDocumentRef(const Glib::RefPtr<Gio::File>& file, const TextPos& pos, SourceView* sourceView, const Glib::ustring& method)
 : CclsDocumentRef::CclsDocumentRef(file, pos, method)
@@ -68,11 +78,12 @@ SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     set_icon(pix);
     createActions();
     refBuilder->get_widget("notebook", m_notebook);
+    refBuilder->get_widget("progress", m_progress);
     set_default_size(640, 480);
 }
 
 std::shared_ptr<SourceFile>
-SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
+SourceView::addFile(const Glib::RefPtr<Gio::File>& item, bool display)
 {
     auto sourceFile = std::make_shared<SourceFile>(this);
     auto widget = sourceFile->buildSourceView(item);
@@ -90,8 +101,10 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
     }
     sourceFile->applyStyle(style, fontDesc);
 
-    widget->show_all();
-    // create these early as init takes some time
+    if (display) {
+        widget->show_all();
+    }
+    // create language server early as init takes some time
     auto language = mapLanguage(sourceFile->getLanguage());
     if (!language.empty()) {
         auto dir = item->get_parent();
@@ -100,7 +113,18 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
             // use only only one language server per source dir
             auto langServIt = m_ccLangServers.find(dir->get_path());
             if (langServIt == m_ccLangServers.end()) {
-                auto ccLangServer = std::make_shared<CcLangServer>();
+                auto keyFile = m_application->getKeyFile();
+                std::string args;
+                if (keyFile->hasKey(PrefSourceView::CONFIG_SRCVIEW_GRP, LANGUAGESERVER_ARGS)) {
+                    args = keyFile->getString(PrefSourceView::CONFIG_SRCVIEW_GRP, LANGUAGESERVER_ARGS);
+                }
+                else {
+                    args = "/usr/bin/ccls";
+                    // consider use "-v 2" to debug
+                    keyFile->setString(PrefSourceView::CONFIG_SRCVIEW_GRP, LANGUAGESERVER_ARGS, args);
+                }
+                auto ccLangServer = std::make_shared<CcLangServer>(args);
+                ccLangServer->setStatusListener(this);
                 auto init = std::make_shared<CclsInit>(dir);
                 ccLangServer->communicate(init);
                 m_ccLangServers.insert(std::make_pair(dir->get_path(), ccLangServer));
@@ -110,6 +134,42 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
     m_files.push_back(sourceFile);
     return sourceFile;
 }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch"   // switches are incomplete by intention
+
+void
+SourceView::notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent)
+{
+    double value = 0.0;
+    Glib::ustring stat;
+    switch (kind) {
+    case CclsStatusKind::Begin:
+        value = 0.0;
+        stat = Glib::ustring(_("Started ")) + status;
+        break;
+    case CclsStatusKind::Report:
+        value = static_cast<double>(percent) / 100.0;
+        stat = status;
+        break;
+    case CclsStatusKind::End:
+        value = 1.0;
+        stat = Glib::ustring(_("Completed ")) + status;
+        break;
+    }
+    m_progress->set_fraction(value);
+    m_progress->set_text(stat);
+}
+
+#pragma GCC diagnostic pop
+
+void
+SourceView::serverExited()
+{
+    m_progress->set_fraction(0.0);
+    m_progress->set_text(_("Server exited."));
+}
+
 
 std::shared_ptr<SourceFile>
 SourceView::findView(const Glib::RefPtr<Gio::File>& file)
@@ -128,8 +188,7 @@ int
 SourceView::getIndex(const std::shared_ptr<SourceFile>& view)
 {
     for (size_t i = 0; i < m_files.size(); ++i) {
-        auto v = m_files[i];
-        if (view == v) {
+        if (view == m_files[i]) {
             return i;
         }
     }
@@ -308,7 +367,8 @@ SourceView::showDocumentRef(SourceFile* sourceFile, const TextPos& pos, const Gl
         if (ccLangServIt != m_ccLangServers.end()) {
             auto ccLangServer = (*ccLangServIt).second;
            // it might be more appropriate to do this when showing/changing tab
-            auto open = std::make_shared<CclsOpen>(file, language, 0);
+            auto text = sourceFile->getText();
+            auto open = std::make_shared<SourceOpen>(file, language, 0, text);
             ccLangServer->communicate(open);
 
             auto lookup = std::make_shared<SourceDocumentRef>(file, pos, this, method);
@@ -333,8 +393,12 @@ SourceView::gotoFilePos(const Glib::RefPtr<Gio::File>& file, const TextPos& pos)
     if (!view) {
         view = addFile(file);
     }
-    m_notebook->set_current_page(getIndex(view));
-    view->show(pos);
+    auto ctx = Glib::MainContext::get_default();
+    ctx->signal_idle().connect_once( // delay navigation as it wont work when view was just created
+        [this,view,pos] {
+            m_notebook->set_current_page(getIndex(view));
+            view->show(pos);
+    });
 }
 
 

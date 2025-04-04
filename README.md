@@ -40,10 +40,13 @@ cd genericImg/src
 </pre>
 If the file was created in genericImg/src it is used
 as a test case here. And of course a ccls install provided
-by your distro is required as well
-(other implemenations for the language server protocol exist
-but i tested only ccls).
+by your distro is required as well.
 
 Ctrl-D go to declation
 
 Ctrl-Shift-D go to definition
+
+Other implemenations for the language server protocol exist
+but i tested only ccls.
+To change use the setting "languageServerArgs"
+in "va_edit.conf" in ".config" in home directory.

@@ -43,6 +43,7 @@ private:
 
 class CclsTest
 : public Gio::Application
+, public CclsStatusListener
 {
 public:
     CclsTest();
@@ -54,7 +55,8 @@ public:
     bool getResult();
     void result();
     TextPos find(const Glib::ustring& text, Glib::UStringView find);
-
+    void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent) override;
+    void serverExited() override;
 protected:
     void start();
     Glib::ustring json_build(const Glib::RefPtr<Gio::File>& file);

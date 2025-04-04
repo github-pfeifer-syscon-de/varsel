@@ -103,17 +103,21 @@ public:
     virtual ~RpcLaunch() = default;
 
     void run();
-    virtual const std::vector<std::string> buildArgs() = 0;
+    virtual const std::vector<Glib::ustring> buildArgs() = 0;
+    virtual void handleStatus(int id, JsonObject* jsonObj);
     int getNextReqId();
     void communicate(const std::shared_ptr<RpcMessage>& message);
     void childExited(bool stat);
     bool getResult();
     void initDone(JsonObject* json);
+    GPid getChildPid() {
+        return child_pid;
+     }
 protected:
     void doCommunicate(const std::shared_ptr<RpcMessage>& message);
 
     void notify(bool err, const gchar* string) override;
-protected:
+    virtual void serverExited();
 
 private:
     std::shared_ptr<RpcReader> m_readerStd;

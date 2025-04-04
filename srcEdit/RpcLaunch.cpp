@@ -264,7 +264,7 @@ RpcLaunch::RpcLaunch()
 void
 RpcLaunch::run()
 {
-    const std::vector<std::string> args = buildArgs();
+    auto args = buildArgs();
     std::vector<gchar *> argv;
     argv.reserve(args.size() + 1);
     for (uint32_t i = 0; i <= args.size(); ++i) {
@@ -341,11 +341,15 @@ RpcLaunch::notify(bool err, const gchar* string)
                         responseIter = m_reponseMap.erase(responseIter);
                     }
                     else {
+                        handleStatus(id, root);
                         psc::log::Log::logAdd(psc::log::Level::Warn,
                             [&] {
                                 return psc::fmt::format("no response for id  {}", id);
                             });
                     }
+                }
+                else {
+                    handleStatus(-1, root);
                 }
             }
             catch (const JsonException& exc) {
@@ -364,7 +368,13 @@ RpcLaunch::notify(bool err, const gchar* string)
     }
 }
 
-int RpcLaunch::getNextReqId()
+void
+RpcLaunch::handleStatus(int id, JsonObject* jsonObj)
+{
+}
+
+int
+RpcLaunch::getNextReqId()
 {
     return ++m_reqId;
 }
@@ -412,6 +422,28 @@ RpcLaunch::doCommunicate(const std::shared_ptr<RpcMessage>& message)
 
 }
 
+void
+RpcLaunch::serverExited()
+{
+}
+
+void
+RpcLaunch::childExited(bool stat)
+{
+    psc::log::Log::logAdd(psc::log::Level::Debug,
+        [&] {
+            return psc::fmt::format("childExited {}", (stat ? "normal" : "abnormaly" ));
+        });
+    m_stat = stat;
+    serverExited();
+}
+
+bool
+RpcLaunch::getResult()
+{
+    return m_stat;
+}
+
 RpcMessage::RpcMessage()
 {
 }
@@ -453,22 +485,5 @@ int
 RpcRequest::getReqId()
 {
     return m_reqId;
-}
-
-
-void
-RpcLaunch::childExited(bool stat)
-{
-    psc::log::Log::logAdd(psc::log::Level::Debug,
-        [&] {
-            return psc::fmt::format("childExited {}", (stat ? "normal" : "abnormaly" ));
-        });
-    m_stat = stat;
-}
-
-bool
-RpcLaunch::getResult()
-{
-    return m_stat;
 }
 

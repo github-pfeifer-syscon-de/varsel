@@ -85,31 +85,52 @@ CclsTest::find(const Glib::ustring& text, Glib::UStringView what)
 }
 
 void
-CclsTest::initalized()
+CclsTest::notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent)
 {
-    auto src = m_projDir->get_child("JsonObj.cpp");
-    auto open = std::make_shared<CclsOpen>(src, "cpp", 0);
-    m_ccls->communicate(open);
-    auto txt = open->getText();
-    auto pos = find(txt, "JsonObj::JsonObj");
-    std::cout << "line " << pos.line << " column " << pos.character << std::endl;
-    m_mainContext->signal_timeout().connect_seconds_once([&,src,pos] {
-        auto def = std::make_shared<CclsDefinition>(src, pos);
+    std::cout << "CclsTest::notify"
+              << " status " << status
+              << " kind "  << static_cast<int>(kind)
+              << " percent " << percent << std::endl;
+    if (status == "index" && kind == CclsStatusKind::End) {
+        auto src = m_projDir->get_child("JsonObj.cpp");
+        auto open = std::make_shared<CclsOpen>(src, "cpp", 0);
+        m_ccls->communicate(open);
+        auto txt = open->getText();
+        auto pos = find(txt, "JsonObj::JsonObj");
+        std::cout << "line " << pos.line << " column " << pos.character << std::endl;
+
+        auto def = std::make_shared<CclsDocumentRef>(src, pos, CclsDocumentRef::DEFININION_METHOD);
         m_ccls->communicate(def);
-    }, 5);
-    m_mainContext->signal_timeout().connect_seconds_once([&,src] {
+
         auto close = std::make_shared<CclsClose>(src);
         m_ccls->communicate(close);
-    }, 6);
+
+        m_mainContext->signal_timeout().connect_seconds_once(
+            sigc::mem_fun(*m_ccls.get(), &CcLangServer::shutdown), 2);
+        // give callback some time to work... (while freeing main thread)
+        m_mainContext->signal_timeout().connect_seconds_once(
+            sigc::mem_fun(*this, &CclsTest::result), 3);
+    }
 }
 
+void
+CclsTest::serverExited()
+{
+    result();
+}
+
+void
+CclsTest::initalized()
+{
+}
 
 void
 CclsTest::start()
 {
     auto log = psc::log::Log::create("cclsTest", psc::log::Type::Console);
     log->setLevel(psc::log::Level::Debug);
-    m_ccls = std::make_shared<CcLangServer>();
+    m_ccls = std::make_shared<CcLangServer>("/usr/bin/ccls --log-file=/tmp/ccls.log --init={\"index\":{\"threads\":1}}");
+    m_ccls->setStatusListener(this);
     auto here = Gio::File::create_for_path(".");
     m_projDir = here->resolve_relative_path("../../genericImg/src");
     auto dotccls = m_projDir->get_child(".ccls");
@@ -118,10 +139,11 @@ CclsTest::start()
         m_ccls->communicate(init);
 
         m_mainContext->signal_timeout().connect_seconds_once(
-            sigc::mem_fun(*m_ccls.get(), &CcLangServer::shutdown), 24);
-        // give callback some time to work... (while freeing main thread)
-        m_mainContext->signal_timeout().connect_seconds_once(
-            sigc::mem_fun(*this, &CclsTest::result), 25);
+            [&] {
+                GPid pid =m_ccls->getChildPid();
+                std::cout << "Killing " << pid << " the index data is most likely defect -> remove .ccls-cache" << std::endl;
+                kill(pid, SIGTERM); // if nothing worked kill it
+            }, 90);                 // if your are using a "slow" system e.g. raspi this might event need a longer timeout
     }
     else {
         m_result = true;    // Don't count this as failure

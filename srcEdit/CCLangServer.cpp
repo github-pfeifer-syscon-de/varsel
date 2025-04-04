@@ -19,6 +19,8 @@
 #include <iostream>
 #include <JsonObj.hpp>
 #include <Log.hpp>
+#include <StringUtils.hpp>
+#include <cstring>
 
 #include "CCLangServer.hpp"
 
@@ -227,8 +229,9 @@ CclsDocumentRef::create(RpcLaunch* rpcLaunch)
 }
 
 
-CcLangServer::CcLangServer()
+CcLangServer::CcLangServer(const std::string& launch)
 : RpcLaunch::RpcLaunch()
+, m_launch{launch}
 {
     run();
 }
@@ -243,14 +246,114 @@ CcLangServer::shutdown()
     communicate(shut);
 }
 
-const std::vector<std::string>
+const std::vector<Glib::ustring>
 CcLangServer::buildArgs()
 {
-    std::vector<std::string> args;
-    args.reserve(16);
-    args.push_back("/usr/bin/ccls");
-    args.push_back("--log-file=/tmp/ccls.log");
-    //args.push_back("-v");
-    //args.push_back("2");
+    std::vector<Glib::ustring> args;
+    args.reserve(8);
+    StringUtils::split(m_launch, ' ', args);
     return args;
+}
+
+void
+CcLangServer::setStatusListener(CclsStatusListener *statusListener)
+{
+    m_statusListener = statusListener;
+}
+
+
+Glib::ustring
+CcLangServer::getStatus()
+{
+    return m_status;
+}
+
+Glib::ustring
+CcLangServer::getMessage()
+{
+    return m_message;
+}
+
+Glib::ustring
+CcLangServer::getTitle()
+{
+    return m_title;
+}
+
+gint64
+CcLangServer::getPercent()
+{
+    return m_percent;
+}
+
+void
+CcLangServer::decodeStatus(JsonObject* jsonObj)
+{
+    if (json_object_has_member(jsonObj, "params")) {
+        auto params = json_object_get_object_member(jsonObj, "params");
+        if (json_object_has_member(params, "token")) {
+            m_status = json_object_get_string_member(params, "token");
+
+
+        }
+        if (json_object_has_member(params, "value")) {
+            auto value = json_object_get_object_member(params, "value");
+            CclsStatusKind statusKind{CclsStatusKind::None};
+            if (json_object_has_member(value, "kind")) {
+                auto kind = json_object_get_string_member(value, "kind");
+                if (std::strcmp(kind, "begin") == 0) {
+                    statusKind = CclsStatusKind::Begin;
+                }
+                else if (std::strcmp(kind, "report") == 0) {
+                    statusKind = CclsStatusKind::Report;
+                }
+                else if (std::strcmp(kind, "end") == 0) {
+                    statusKind = CclsStatusKind::End;
+                }
+
+                if (json_object_has_member(value, "title")) {
+                    m_title = json_object_get_string_member(value, "title");
+                }
+                if (json_object_has_member(value, "message")) {
+                    m_message = json_object_get_string_member(value, "message");
+                }
+                if (json_object_has_member(value, "percentage")) {
+                    m_percent = json_object_get_int_member(value, "percentage");
+                }
+
+            }
+            if (m_statusListener) {
+                m_statusListener->notify(m_status, statusKind, m_percent);
+            }
+        }
+    }
+}
+
+void
+CcLangServer::serverExited()
+{
+    if (m_statusListener) {
+        m_statusListener->serverExited();
+    }
+}
+
+void
+CcLangServer::handleStatus(int id, JsonObject* jsonObj)
+{
+    if (json_object_has_member(jsonObj, "method")) {
+        std::string method = json_object_get_string_member(jsonObj, "method");
+        if (method == "window/workDoneProgress/create") {
+            decodeStatus(jsonObj);
+        }
+        else if (method == "$/progress") {
+            decodeStatus(jsonObj);
+        }
+        else if (method == "$ccls/publishSemanticHighlight") {
+            //decodeHighlight(jsonObj);
+        }
+        else if (method == "textDocument/publishDiagnostics") {
+            //decodeDiagnostic(jsonObj);
+        }
+
+    }
 }

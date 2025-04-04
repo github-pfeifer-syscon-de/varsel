@@ -45,7 +45,9 @@ public:
     void showDocumentRef(const TextPos& pos, const Glib::ustring& method);
     Glib::ustring getLanguage();
     Glib::RefPtr<Gio::File> getFile();
+    Glib::ustring getText();
     void show(const TextPos& pos);
+    Gtk::Widget* getWidget();
 
     static constexpr size_t BUF_SIZE{8u*1024u};
 
@@ -62,5 +64,6 @@ private:
     std::shared_ptr<EventItem> m_eventItem;
     Glib::RefPtr<Gtk::CssProvider> m_provider;
     Glib::ustring m_language;
+    Gtk::ScrolledWindow* m_scrollView{nullptr};
 };
 

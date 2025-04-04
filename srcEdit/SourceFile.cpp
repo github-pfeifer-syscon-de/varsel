@@ -179,15 +179,11 @@ SourceFile::checkSave()
 void
 SourceFile::save(const Glib::RefPtr<Gio::File>& file)
 {
-    GtkTextIter start;
-    GtkTextIter end;
-    gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(m_buffer), &start, &end);
-    char* text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(m_buffer), &start, &end, false);
-    std::cout << "Got text " << strlen(text) << std::endl;
+    auto text = getText();
     try {
         // use no etag
         auto output = file->replace("", true, Gio::FileCreateFlags::FILE_CREATE_REPLACE_DESTINATION);
-        output->write(text, strlen(text));
+        output->write(text);
         output->close();
     }
     catch (const Glib::Error& exc) {
@@ -195,7 +191,6 @@ SourceFile::save(const Glib::RefPtr<Gio::File>& file)
         m_sourceWin->showMessage(psc::fmt::vformat(_("Error {} saving {}"),
                             psc::fmt::make_format_args(exc, path)));
     }
-    g_free(reinterpret_cast<void*>(text));
 }
 
 void
@@ -260,6 +255,25 @@ SourceFile::getFile()
 }
 
 Glib::ustring
+SourceFile::getText()
+{
+    GtkTextIter start;
+    GtkTextIter end;
+    gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(m_buffer), &start, &end);
+    char* text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(m_buffer), &start, &end, false);
+    //std::cout << "Got text " << strlen(text) << std::endl;
+    Glib::ustring utext{text};
+    g_free(reinterpret_cast<void*>(text));
+    return utext;
+}
+
+Gtk::Widget*
+SourceFile::getWidget()
+{
+    return m_scrollView;
+}
+
+Glib::ustring
 SourceFile::getLanguage()
 {
     return m_language;
@@ -277,7 +291,7 @@ SourceFile::show(const TextPos& pos)
 Gtk::Widget*
 SourceFile::buildSourceView(const Glib::RefPtr<Gio::File>& file)
 {
-    auto scrollView = Gtk::make_managed<Gtk::ScrolledWindow>();
+    m_scrollView = Gtk::make_managed<Gtk::ScrolledWindow>();
     GtkSourceLanguage* srcLang{nullptr};
     if (file) {
         m_eventItem = std::make_shared<EventItem>(file);
@@ -310,8 +324,8 @@ SourceFile::buildSourceView(const Glib::RefPtr<Gio::File>& file)
                     , GCallback(&(editorKeyEvent))
                     , this);
 
-    gtk_container_add(GTK_CONTAINER(scrollView->gobj()), GTK_WIDGET(m_sourceView));
-    return scrollView;
+    gtk_container_add(GTK_CONTAINER(m_scrollView->gobj()), GTK_WIDGET(m_sourceView));
+    return m_scrollView;
 }
 
 GtkSourceLanguage*
