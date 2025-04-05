@@ -17,58 +17,60 @@
  */
 
 #include <iostream>
-#include <JsonObj.hpp>
 #include <Log.hpp>
 #include <StringUtils.hpp>
 #include <cstring>
 
-#include "CCLangServer.hpp"
+#include "LspServer.hpp"
 
-CclsExit::CclsExit()
+LspExit::LspExit()
 : RpcMessage::RpcMessage()
 {
 }
 
 const char*
-CclsExit::getMethod()
+LspExit::getMethod()
 {
     return "exit";
 }
 
 
-CclsShutdown::CclsShutdown(RpcLaunch* rpcLaunch)
+LspShutdown::LspShutdown(RpcLaunch* rpcLaunch)
 : RpcRequest::RpcRequest()
 , m_rpcLaunch{rpcLaunch}
 {
 }
 
 void
-CclsShutdown::result(const std::shared_ptr<psc::json::JsonValue>& json)
+LspShutdown::result(const psc::json::PtrJsonValue& json)
 {
-    auto exit = std::make_shared<CclsExit>();
+    auto exit = std::make_shared<LspExit>();
     m_rpcLaunch->communicate(exit);
 }
 
 const char*
-CclsShutdown::getMethod()
+LspShutdown::getMethod()
 {
     return "shutdown";
 }
 
-CclsInit::CclsInit(const Glib::RefPtr<Gio::File>& dir)
+LspInit::LspInit(const Glib::RefPtr<Gio::File>& dir, LspServer* server)
 : RpcRequest::RpcRequest()
 , m_dir{dir}
+, m_server{server}
 {
 }
 
 void
-CclsInit::result(const std::shared_ptr<psc::json::JsonValue>& json)
+LspInit::result(const psc::json::PtrJsonValue& init)
 {
-    //m_rpcLaunch->initDone(json);
+    if (m_server) {
+        m_server->initDone(init);
+    }
 }
 
-std::shared_ptr<psc::json::JsonObj>
-CclsInit::create(RpcLaunch* rpcLaunch)
+psc::json::PtrJsonObj
+LspInit::create(RpcLaunch* rpcLaunch)
 {
     auto obj = RpcRequest::create(rpcLaunch);
     auto params = obj->createObj("params");
@@ -88,13 +90,13 @@ CclsInit::create(RpcLaunch* rpcLaunch)
 }
 
 const char*
-CclsInit::getMethod()
+LspInit::getMethod()
 {
     return "initialize";
 }
 
 
-CclsOpen::CclsOpen(const Glib::RefPtr<Gio::File>& file, const Glib::ustring& lang, int version)
+LspOpen::LspOpen(const Glib::RefPtr<Gio::File>& file, const Glib::ustring& lang, int version)
 : RpcMessage::RpcMessage()
 , m_file{file}
 , m_lang{lang}
@@ -103,13 +105,13 @@ CclsOpen::CclsOpen(const Glib::RefPtr<Gio::File>& file, const Glib::ustring& lan
 }
 
 const char*
-CclsOpen::getMethod()
+LspOpen::getMethod()
 {
     return "textDocument/didOpen";
 }
 
-std::shared_ptr<psc::json::JsonObj>
-CclsOpen::create(RpcLaunch* rpcLaunch)
+psc::json::PtrJsonObj
+LspOpen::create(RpcLaunch* rpcLaunch)
 {
     auto obj = RpcMessage::create(rpcLaunch);
     auto params = obj->createObj("params");
@@ -123,13 +125,13 @@ CclsOpen::create(RpcLaunch* rpcLaunch)
 }
 
 Glib::ustring
-CclsOpen::getText()
+LspOpen::getText()
 {
     if (m_text.empty()) {
         g_autoptr(GError) error{nullptr};
         auto channel = g_io_channel_new_file(m_file->get_path().c_str(), "r", &error);
         if (error) {
-            std::cout << "Error " << error->message << " opening " << m_file->get_path() << std::endl;
+            psc::log::Log::logAdd(psc::log::Level::Error, psc::fmt::format("Error {} opening {}", error->message, m_file->get_path()));
             return m_text;
         }
         g_io_channel_set_encoding(channel, "UTF-8", nullptr);
@@ -143,7 +145,7 @@ CclsOpen::getText()
                 break;
             }
             if (error) {
-                std::cout << "Error " << error->message << " reading " << m_file->get_path() << std::endl;
+                psc::log::Log::logAdd(psc::log::Level::Error, psc::fmt::format("Error {} reading {}", error->message, m_file->get_path()));
                 break;
             }
             else {
@@ -159,20 +161,20 @@ CclsOpen::getText()
 
 
 
-CclsClose::CclsClose(const Glib::RefPtr<Gio::File>& file)
+LspClose::LspClose(const Glib::RefPtr<Gio::File>& file)
 : RpcMessage::RpcMessage()
 , m_file{file}
 {
 }
 
 const char*
-CclsClose::getMethod()
+LspClose::getMethod()
 {
     return "textDocument/didClose";
 }
 
-std::shared_ptr<psc::json::JsonObj>
-CclsClose::create(RpcLaunch* rpcLaunch)
+psc::json::PtrJsonObj
+LspClose::create(RpcLaunch* rpcLaunch)
 {
     auto obj = RpcMessage::create(rpcLaunch);
     auto params = obj->createObj("params");
@@ -181,18 +183,146 @@ CclsClose::create(RpcLaunch* rpcLaunch)
     return obj;
 }
 
+LspLocation::LspLocation()
+: LspLocation::LspLocation{0, 0}
+{
+}
+
+LspLocation::LspLocation(uint32_t line, uint32_t character)
+: LspLocation::LspLocation{line, character, line, character}
+{
+}
+
+LspLocation::LspLocation(uint32_t startLine, uint32_t startCharacter, uint32_t endLine, uint32_t endCharacter)
+: m_startLine{startLine}
+, m_startCharacter{startCharacter}
+, m_endLine{endLine}
+, m_endCharacter{endCharacter}
+{
+}
+
+uint32_t
+LspLocation::getStartLine() const
+{
+    return m_startLine;
+}
+
+void
+LspLocation::setStartLine(uint32_t startLine)
+{
+    m_startLine = startLine;
+}
+
+uint32_t
+LspLocation::getStartCharacter() const
+{
+    return m_startCharacter;
+}
+
+void
+LspLocation::setStartCharacter(uint32_t startCharacter)
+{
+    m_startCharacter = startCharacter;
+}
+
+uint32_t
+LspLocation::getEndLine() const
+{
+    return m_endLine;
+}
+
+void
+LspLocation::setEndLine(uint32_t endLine)
+{
+    m_endLine = endLine;
+}
+
+uint32_t
+LspLocation::getEndCharacter() const
+{
+    return m_endCharacter;
+}
+
+void
+LspLocation::setEndCharacter(uint32_t endCharacter)
+{
+    m_endCharacter = endCharacter;
+}
+
+Glib::RefPtr<Gio::File>
+LspLocation::getUri() const
+{
+    return m_file;
+}
+
+void
+LspLocation::setUri(const Glib::RefPtr<Gio::File>& file)
+{
+    m_file = file;
+}
+
+void
+LspLocation::toJson(const psc::json::PtrJsonObj& params)
+{
+    auto textDoc = params->createObj("textDocument");
+    textDoc->set("uri", m_file->get_uri().c_str());
+    auto pos = params->createObj("position");
+    pos->set("line", m_startLine);
+    pos->set("character", m_startCharacter);
+}
+
+bool
+LspLocation::fromJson(const psc::json::PtrJsonValue& json)
+{
+    psc::json::PtrJsonObj location;
+    if (json->isArray()) {
+        auto arr = json->getArray();
+        if (arr->getSize() > 0) {
+            auto val = arr->get(0);
+            location = val->getObject();
+        }
+    }
+    else {
+        location = json->getObject();
+    }
+    if (location) {
+        auto uri = location->getValue("uri");
+        m_file = Gio::File::create_for_uri(uri->getString());
+        auto rangeVal = location->getValue("range");
+        auto range = rangeVal->getObject();
+        auto startVal = range->getValue("start");
+        auto start = startVal->getObject();
+        auto jstartLine = start->getValue("line");
+        m_startLine = static_cast<uint32_t>(jstartLine->getInt());
+        auto jstartCharacter = start->getValue("character");
+        m_startCharacter = static_cast<uint32_t>(jstartCharacter->getInt());
+        auto endVal = range->getValue("end");
+        if (endVal && endVal->isObject()) {
+            auto end = endVal->getObject();
+            auto jendLine = end->getValue("line");
+            m_endLine = static_cast<uint32_t>(jendLine->getInt());
+            auto jendCharacter = end->getValue("character");
+            m_endCharacter = static_cast<uint32_t>(jendCharacter->getInt());
+        }
+        else {
+            m_endLine = m_startLine;
+            m_endCharacter = m_startCharacter;
+        }
+        return true;
+    }
+    return false;
+}
 
 
-CclsDocumentRef::CclsDocumentRef(const Glib::RefPtr<Gio::File>& file, const TextPos& pos, const Glib::ustring& method)
+LspDocumentRef::LspDocumentRef(const LspLocation& pos, const Glib::ustring& method)
 : RpcRequest::RpcRequest()
-, m_file{file}
 , m_pos{pos}
 , m_method(method)
 {
 }
 
 void
-CclsDocumentRef::result(const std::shared_ptr<psc::json::JsonValue>& json)
+LspDocumentRef::result(const psc::json::PtrJsonValue& json)
 {
     if (json->isObject()) {
         auto obj = json->getObject();
@@ -210,91 +340,85 @@ CclsDocumentRef::result(const std::shared_ptr<psc::json::JsonValue>& json)
 }
 
 const char*
-CclsDocumentRef::getMethod()
+LspDocumentRef::getMethod()
 {
     return m_method.c_str();
 }
 
-std::shared_ptr<psc::json::JsonObj>
-CclsDocumentRef::create(RpcLaunch* rpcLaunch)
+psc::json::PtrJsonObj
+LspDocumentRef::create(RpcLaunch* rpcLaunch)
 {
     auto obj = RpcRequest::create(rpcLaunch);
     auto params = obj->createObj("params");
-    auto textDoc = params->createObj("textDocument");
-    textDoc->set("uri", m_file->get_uri().c_str());
-    auto pos = params->createObj("position");
-    pos->set("line", m_pos.line);
-    pos->set("character", m_pos.character);
+    m_pos.toJson(params);
     return obj;
 }
 
 
-CcLangServer::CcLangServer(const std::string& launch)
+LspServer::LspServer(const PtrLanguage& language)
 : RpcLaunch::RpcLaunch()
-, m_launch{launch}
+, m_language{language}
 {
     run();
 }
 
 void
-CcLangServer::shutdown()
+LspServer::shutdown()
 {
     //std::string term{"\u0004"}; // use ^d to terminate ?
     //auto bytes_written = m_strmStdin->write(term);
     //kill(child_pid, SIGINT);   // SIGTERM
-    auto shut = std::make_shared<CclsShutdown>(this);
+    auto shut = std::make_shared<LspShutdown>(this);
     communicate(shut);
 }
 
 const std::vector<Glib::ustring>
-CcLangServer::buildArgs()
+LspServer::buildArgs()
 {
     std::vector<Glib::ustring> args;
     args.reserve(8);
-    StringUtils::split(m_launch, ' ', args);
+    StringUtils::split(m_language->getExecute(), ' ', args);
     return args;
 }
 
 void
-CcLangServer::setStatusListener(CclsStatusListener *statusListener)
+LspServer::setStatusListener(LspStatusListener *statusListener)
 {
     m_statusListener = statusListener;
 }
 
 
 Glib::ustring
-CcLangServer::getStatus()
+LspServer::getStatus()
 {
     return m_status;
 }
 
 Glib::ustring
-CcLangServer::getMessage()
+LspServer::getMessage()
 {
     return m_message;
 }
 
 Glib::ustring
-CcLangServer::getTitle()
+LspServer::getTitle()
 {
     return m_title;
 }
 
 gint64
-CcLangServer::getPercent()
+LspServer::getPercent()
 {
     return m_percent;
 }
 
 void
-CcLangServer::decodeStatus(JsonObject* jsonObj)
+LspServer::decodeStatus(JsonObject* jsonObj)
 {
     if (json_object_has_member(jsonObj, "params")) {
         auto params = json_object_get_object_member(jsonObj, "params");
         if (json_object_has_member(params, "token")) {
             m_status = json_object_get_string_member(params, "token");
-
-
         }
         if (json_object_has_member(params, "value")) {
             auto value = json_object_get_object_member(params, "value");
@@ -330,7 +454,7 @@ CcLangServer::decodeStatus(JsonObject* jsonObj)
 }
 
 void
-CcLangServer::serverExited()
+LspServer::serverExited()
 {
     if (m_statusListener) {
         m_statusListener->serverExited();
@@ -338,7 +462,26 @@ CcLangServer::serverExited()
 }
 
 void
-CcLangServer::handleStatus(int id, JsonObject* jsonObj)
+LspServer::initDone(const psc::json::PtrJsonValue& init)
+{
+    m_init = init->getObject();
+}
+
+bool
+LspServer::supportsMethod(const Glib::ustring& method)
+{
+    auto cap = m_init->getValue("capabilities")->getObject();
+    if (method == LspDocumentRef::DEFININION_METHOD) {
+        return cap->getValue("definitionProvider")->getBool();
+    }
+    if (method == LspDocumentRef::DECLATATION_METHOD) {
+        return cap->getValue("declarationProvider")->getBool();
+    }
+    return true;    // we can't be sure
+}
+
+void
+LspServer::handleStatus(int id, JsonObject* jsonObj)
 {
     if (json_object_has_member(jsonObj, "method")) {
         std::string method = json_object_get_string_member(jsonObj, "method");
@@ -356,4 +499,10 @@ CcLangServer::handleStatus(int id, JsonObject* jsonObj)
         }
 
     }
+}
+
+PtrLanguage
+LspServer::getLanguage()
+{
+    return m_language;
 }

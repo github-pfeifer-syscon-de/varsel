@@ -44,7 +44,7 @@ public:
      RpcMessage();
      virtual ~RpcMessage() = default;
 
-     virtual std::shared_ptr<psc::json::JsonObj> create(RpcLaunch* rpcLaunch);
+     virtual psc::json::PtrJsonObj create(RpcLaunch* rpcLaunch);
      virtual const char* getMethod() = 0;
 };
 
@@ -54,8 +54,8 @@ class RpcRequest
 public:
     RpcRequest();
 
-    virtual std::shared_ptr<psc::json::JsonObj> create(RpcLaunch* rpcLaunch) override;
-    virtual void result(const std::shared_ptr<psc::json::JsonValue>& result) = 0;
+    virtual psc::json::PtrJsonObj create(RpcLaunch* rpcLaunch) override;
+    virtual void result(const psc::json::PtrJsonValue& result) = 0;
     virtual void error(JsonObject* error);
     int getReqId();
 protected:

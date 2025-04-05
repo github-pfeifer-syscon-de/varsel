@@ -45,7 +45,8 @@ archiv_test_SOURCES = ArchivTest.cpp
 ccls_test_LDADD = \
 	../srcLib/libcommon.a \
 	../srcEdit/va_edit-RpcLaunch.o \
-	../srcEdit/va_edit-CCLangServer.o \
+	../srcEdit/va_edit-LspServer.o \
+	../srcEdit/va_edit-Language.o \
 	$(GLIBMM_LIBS) \
 	$(GENERICIMG_LIBS)
 

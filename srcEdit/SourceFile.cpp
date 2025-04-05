@@ -20,7 +20,7 @@
 #include <psc_i18n.hpp>
 #include <Log.hpp>
 
-#include "CCLangServer.hpp"
+#include "LspServer.hpp"
 #include "SourceView.hpp"
 #include "SourceFile.hpp"
 
@@ -70,8 +70,8 @@ editorKeyEvent(GtkWidget* widget, GdkEventKey* key, gpointer user_data)
      && ((key->state & GDK_MOD1_MASK) == 0) ) {   // represents alt
         auto pos = sourceFile->getPosition();
         std::cout << "editorKeyEvent"
-          << " line " << pos.line
-          << " char " << pos.character << std::endl;
+          << " line " << pos.getStartLine()
+          << " char " << pos.getStartCharacter() << std::endl;
         Glib::ustring method;
         if ((key->state & GDK_SHIFT_MASK) == 0) {
             method = SourceDocumentRef::DEFININION_METHOD;
@@ -231,7 +231,7 @@ SourceFile::getExtension()
     return ext;
 }
 
-TextPos
+LspLocation
 SourceFile::getPosition()
 {
     GtkTextMark* mark = gtk_text_buffer_get_insert(GTK_TEXT_BUFFER(m_buffer));
@@ -239,11 +239,13 @@ SourceFile::getPosition()
     gtk_text_buffer_get_iter_at_mark(GTK_TEXT_BUFFER(m_buffer), &iter, mark);
     auto line = gtk_text_iter_get_line(&iter);
     auto characters = gtk_text_iter_get_line_offset(&iter);
-    return TextPos{line, characters};
+    LspLocation loc{static_cast<uint32_t>(line), static_cast<uint32_t>(characters)};
+    loc.setUri(getFile());
+    return loc;
 }
 
 void
-SourceFile::showDocumentRef(const TextPos& pos, const Glib::ustring& method)
+SourceFile::showDocumentRef(const LspLocation& pos, const Glib::ustring& method)
 {
     m_sourceWin->showDocumentRef(this, pos, method);
 }
@@ -280,10 +282,10 @@ SourceFile::getLanguage()
 }
 
 void
-SourceFile::show(const TextPos& pos)
+SourceFile::show(const LspLocation& pos)
 {
     GtkTextIter iter;
-    gtk_text_buffer_get_iter_at_line_offset(GTK_TEXT_BUFFER(m_buffer), &iter, pos.line, pos.character);
+    gtk_text_buffer_get_iter_at_line_offset(GTK_TEXT_BUFFER(m_buffer), &iter, pos.getStartLine(), pos.getStartCharacter());
     gtk_text_buffer_place_cursor(GTK_TEXT_BUFFER(m_buffer), &iter);
     gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(m_sourceView), &iter, 0, true, 0.5, 0.5);
 }

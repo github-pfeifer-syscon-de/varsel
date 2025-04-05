@@ -31,8 +31,11 @@ F9 open from terminal (with a selection it will be tried to be used as a filenam
 ### Source edit language server support
 
 A simple implementation for the language server protocol was
-added to the editor. For this to work a .ccls file is needed in
-the source directory. It can be created by the make2ccls.sh
+added to the editor.
+As a starting point ccls is added by default.
+To make ccls work, a .ccls file is needed in
+the source directory.
+It can be created by the make2ccls.sh
 script (it is included in genericImg). Use:
 <pre>
 cd genericImg/src
@@ -42,11 +45,13 @@ If the file was created in genericImg/src it is used
 as a test case here. And of course a ccls install provided
 by your distro is required as well.
 
-Ctrl-D go to declation
+At the moment these two key-bindings are used:
 
-Ctrl-Shift-D go to definition
+Ctrl-D go to definition
 
-Other implemenations for the language server protocol exist
-but i tested only ccls.
-To change use the setting "languageServerArgs"
-in "va_edit.conf" in ".config" in home directory.
+Ctrl-Shift-D go to declation
+
+Other implemenations for the language server protocol
+exist but i only tested ccls.
+To add or change use the language sections in
+in "va_edit.conf" in ".config" in your home directory.

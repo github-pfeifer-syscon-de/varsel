@@ -23,16 +23,17 @@
 #include <map>
 #include <memory>
 
-#include "CCLangServer.hpp"
+#include "LspServer.hpp"
 #include "EventBus.hpp"
 #include "SourceFile.hpp"
+#include "Language.hpp"
 
 class EditApp;
 class SourceView;
 class SourceFile;
 
 class SourceOpen
-: public CclsOpen
+: public LspOpen
 {
 public:
     SourceOpen(const Glib::RefPtr<Gio::File>& file, const Glib::ustring& lang, int version, const Glib::ustring& text);
@@ -45,14 +46,14 @@ private:
 };
 
 class SourceDocumentRef
-: public CclsDocumentRef
+: public LspDocumentRef
 {
 public:
-    SourceDocumentRef(const Glib::RefPtr<Gio::File>& file, const TextPos& pos, SourceView* sourceView, const Glib::ustring& method);
+    SourceDocumentRef(const LspLocation& pos, SourceView* sourceView, const Glib::ustring& method);
     explicit SourceDocumentRef(const SourceDocumentRef& orig) = delete;
     virtual ~SourceDocumentRef() = default;
 
-    void result(const std::shared_ptr<psc::json::JsonValue>& json) override;
+    void result(const psc::json::PtrJsonValue& json) override;
 
 private:
     SourceView* m_sourceView;
@@ -60,7 +61,7 @@ private:
 
 class SourceView
 : public Gtk::ApplicationWindow
-, public CclsStatusListener
+, public LspStatusListener
 {
 public:
     SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, EditApp* varselApp);
@@ -81,24 +82,25 @@ public:
         return m_application;
     }
     void showFiles(const std::vector<Glib::RefPtr<Gio::File>>& matchingFiles);
-    void showDocumentRef(SourceFile* sourceFile, const TextPos& pos, const Glib::ustring& method);
-    void gotoFilePos(const Glib::RefPtr<Gio::File>& file, const TextPos& pos);
-    Glib::ustring mapLanguage(const Glib::ustring& viewLanguage);
+    void showDocumentRef(SourceFile* sourceFile, const LspLocation& pos, const Glib::ustring& method);
+    void gotoFilePos(const LspLocation& pos);
     void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent);
     void serverExited();
 
     static constexpr auto LANGUAGESERVER_ARGS = "languageServerArgs";
 protected:
     void createActions();
-    std::shared_ptr<SourceFile> addFile(const Glib::RefPtr<Gio::File>& item, bool display = true);
-    std::shared_ptr<SourceFile> findView(const Glib::RefPtr<Gio::File>& item);
-    int getIndex(const std::shared_ptr<SourceFile>& view);
+    PtrSourceFile addFile(const Glib::RefPtr<Gio::File>& item);
+    PtrSourceFile findView(const Glib::RefPtr<Gio::File>& item);
+    int getIndex(const PtrSourceFile& view);
+    void on_hide() override;
 private:
     EditApp* m_application;
     Gtk::Notebook* m_notebook{nullptr};
     Gtk::ProgressBar* m_progress{nullptr};
-    std::vector<std::shared_ptr<SourceFile>> m_files;
-    std::map<std::string, PtrCcLangServer> m_ccLangServers;
+    std::vector<PtrSourceFile> m_files;
+    std::map<std::string, PtrLspServer> m_ccLangServers;
+    Languages m_languages;
 };
 
 

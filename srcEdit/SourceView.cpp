@@ -25,7 +25,7 @@
 #include "PrefSourceView.hpp"
 
 SourceOpen::SourceOpen(const Glib::RefPtr<Gio::File>& file, const Glib::ustring& lang, int version, const Glib::ustring& text)
-: CclsOpen::CclsOpen(file, lang, version)
+: LspOpen::LspOpen(file, lang, version)
 , m_text{text}
 {
 }
@@ -36,37 +36,26 @@ SourceOpen::getText()
     return m_text;
 }
 
-SourceDocumentRef::SourceDocumentRef(const Glib::RefPtr<Gio::File>& file, const TextPos& pos, SourceView* sourceView, const Glib::ustring& method)
-: CclsDocumentRef::CclsDocumentRef(file, pos, method)
+SourceDocumentRef::SourceDocumentRef(const LspLocation& pos, SourceView* sourceView, const Glib::ustring& method)
+: LspDocumentRef::LspDocumentRef(pos, method)
 , m_sourceView{sourceView}
 {
 }
 
 void
-SourceDocumentRef::result(const std::shared_ptr<psc::json::JsonValue>& json)
+SourceDocumentRef::result(const psc::json::PtrJsonValue& json)
 {
-    if (json->isArray()) {
-        auto arr = json->getArray();
-        if (arr->getSize() > 0) {
-            auto val = arr->get(0);
-            auto obj = val->getObject();
-            auto uri = obj->getValue("uri");
-            auto rangeVal = obj->getValue("range");
-            auto range = rangeVal->getObject();
-            auto startVal = range->getValue("start");
-            auto start = startVal->getObject();
-            auto line = start->getValue("line");
-            auto character = start->getValue("character");
-            Glib::RefPtr<Gio::File> file = Gio::File::create_for_uri(uri->getString());
-            TextPos pos{
-                static_cast<int>(line->getInt()),
-                static_cast<int>(character->getInt())};
-            m_sourceView->gotoFilePos(file, pos);
-            return;
-        }
+    LspLocation pos;
+    if (pos.fromJson(json)) {
+        m_sourceView->gotoFilePos(pos);
+        return;
     }
-    std::cout << "Empty/unknown structure for definition!" << std::endl;
-    // popup ?
+    // this is somewhat common case
+    //   e.g. definiton is a symetric method as it works from cpp&hpp
+    //   but declaration works only from cpp, returns empty array from hpp
+    //psc::log::Log::logAdd(psc::log::Level::Error,
+    //                      psc::fmt::format("Empty/unknown structure {} for definition!", struc));
+    std::cout << "Empty/unknown structure "<< json->generate(2) << " for definition!" << std::endl;
 }
 
 SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder, EditApp* varselApp)
@@ -80,10 +69,11 @@ SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     refBuilder->get_widget("notebook", m_notebook);
     refBuilder->get_widget("progress", m_progress);
     set_default_size(640, 480);
+    m_languages.readConfig(m_application->getKeyFile());
 }
 
-std::shared_ptr<SourceFile>
-SourceView::addFile(const Glib::RefPtr<Gio::File>& item, bool display)
+PtrSourceFile
+SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
 {
     auto sourceFile = std::make_shared<SourceFile>(this);
     auto widget = sourceFile->buildSourceView(item);
@@ -101,34 +91,22 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item, bool display)
     }
     sourceFile->applyStyle(style, fontDesc);
 
-    if (display) {
-        widget->show_all();
-    }
+    widget->show_all();
     // create language server early as init takes some time
-    auto language = mapLanguage(sourceFile->getLanguage());
-    if (!language.empty()) {
-        auto dir = item->get_parent();
-        auto dotccls = dir->get_child(".ccls");
-        if (dotccls->query_exists()) {
-            // use only only one language server per source dir
-            auto langServIt = m_ccLangServers.find(dir->get_path());
-            if (langServIt == m_ccLangServers.end()) {
-                auto keyFile = m_application->getKeyFile();
-                std::string args;
-                if (keyFile->hasKey(PrefSourceView::CONFIG_SRCVIEW_GRP, LANGUAGESERVER_ARGS)) {
-                    args = keyFile->getString(PrefSourceView::CONFIG_SRCVIEW_GRP, LANGUAGESERVER_ARGS);
-                }
-                else {
-                    args = "/usr/bin/ccls";
-                    // consider use "-v 2" to debug
-                    keyFile->setString(PrefSourceView::CONFIG_SRCVIEW_GRP, LANGUAGESERVER_ARGS, args);
-                }
-                auto ccLangServer = std::make_shared<CcLangServer>(args);
-                ccLangServer->setStatusListener(this);
-                auto init = std::make_shared<CclsInit>(dir);
-                ccLangServer->communicate(init);
-                m_ccLangServers.insert(std::make_pair(dir->get_path(), ccLangServer));
-            }
+    // at the moment we are limited to one language server per source dir
+    auto dir = item->get_parent();
+    auto langServIt = m_ccLangServers.find(dir->get_path());
+    if (langServIt == m_ccLangServers.end()) {
+        auto lang = m_languages.getLanguage(item);
+        if (lang) {
+            auto lspServer = std::make_shared<LspServer>(lang);
+            lspServer->setStatusListener(this);
+            auto init = std::make_shared<LspInit>(dir, lspServer.get());
+            lspServer->communicate(init);
+            m_ccLangServers.insert(std::make_pair(dir->get_path(), lspServer));
+        }
+        else {
+            std::cout << "No language support for " << item->get_basename() << std::endl;
         }
     }
     m_files.push_back(sourceFile);
@@ -171,10 +149,10 @@ SourceView::serverExited()
 }
 
 
-std::shared_ptr<SourceFile>
+PtrSourceFile
 SourceView::findView(const Glib::RefPtr<Gio::File>& file)
 {
-    std::shared_ptr<SourceFile> src;
+    PtrSourceFile src;
     for (auto& view : m_files) {
         if (view->getFile()->get_path() == file->get_path()) {
             src = view;
@@ -185,7 +163,7 @@ SourceView::findView(const Glib::RefPtr<Gio::File>& file)
 }
 
 int
-SourceView::getIndex(const std::shared_ptr<SourceFile>& view)
+SourceView::getIndex(const PtrSourceFile& view)
 {
     for (size_t i = 0; i < m_files.size(); ++i) {
         if (view == m_files[i]) {
@@ -324,71 +302,63 @@ SourceView::close(const Glib::VariantBase& val)
     }
 }
 
+void
+SourceView::on_hide()
+{
+    auto keyFile = m_application->getKeyFile();
+    m_languages.saveConfig(keyFile);
+    keyFile->saveConfig();
+    Gtk::ApplicationWindow::on_hide();
+}
 
 void
 SourceView::quit(const Glib::VariantBase& val)
 {
-    std::cout << "SourceView::quit" << std::endl;
     hide();
 }
 
-// Convert the language used
-//   by source view to language server names
-//   at the moment only c++ is supported but
-//   if you are bold you may add more ...
-Glib::ustring
-SourceView::mapLanguage(const Glib::ustring& viewLanguage)
-{
-    if (StringUtils::startsWith(viewLanguage, "C++")) {  // "C++" "C++ Header"
-        return "cpp";
-    }
-    return "";
-}
-
 void
-SourceView::showDocumentRef(SourceFile* sourceFile, const TextPos& pos, const Glib::ustring& method)
+SourceView::showDocumentRef(SourceFile* sourceFile, const LspLocation& pos, const Glib::ustring& method)
 {
-    auto file = sourceFile->getFile();
-    auto language = mapLanguage(sourceFile->getLanguage());
-    if (!language.empty()) {
-        auto dir = file->get_parent();
-        auto dotccls = dir->get_child(".ccls");
-        if (!dotccls->query_exists()) {
-            auto path = dir->get_path();
-            showMessage(psc::fmt::vformat(_("To use language functions the file .ccls is required in {} and a ccls install")
+    auto file = pos.getUri();
+    std::cout << "SourceView::showDocumentRef"
+              << " method " << method
+              << " file " << file->get_path()
+              << " pos " << pos.getStartLine() << ", " << pos.getStartCharacter() << std::endl;
+    auto path = file->get_parent()->get_path();
+    auto ccLangServIt = m_ccLangServers.find(path);
+    if (ccLangServIt != m_ccLangServers.end()) {
+        auto lspServer = (*ccLangServIt).second;
+        if (!lspServer->getLanguage()->hasPrerequisite(file)) {
+            showMessage(psc::fmt::vformat(_("To use this functions a language server protocol implementation and a setup e.g. .ccls file is required in {}")
                                             , psc::fmt::make_format_args(path)));
             return; // no lookup possible
         }
-        std::cout << "SourceView::showDocumentRef"
-                  << " method " << method
-                  << " file " << file->get_path()
-                  << " pos " << pos.line << ", " << pos.character << std::endl;
-        auto ccLangServIt = m_ccLangServers.find(dir->get_path());
-        if (ccLangServIt != m_ccLangServers.end()) {
-            auto ccLangServer = (*ccLangServIt).second;
-           // it might be more appropriate to do this when showing/changing tab
-            auto text = sourceFile->getText();
-            auto open = std::make_shared<SourceOpen>(file, language, 0, text);
-            ccLangServer->communicate(open);
-
-            auto lookup = std::make_shared<SourceDocumentRef>(file, pos, this, method);
-            ccLangServer->communicate(lookup);
-
-            auto close = std::make_shared<CclsClose>(file);
-            ccLangServer->communicate(close);
+        if (!lspServer->supportsMethod(method)) {
+            showMessage(psc::fmt::vformat(_("The server did not announce support for method {}")
+                                        , psc::fmt::make_format_args(method)));
+            return; // no lookup possible
         }
-    }
-    else {
-        psc::log::Log::logAdd(psc::log::Level::Debug, psc::fmt::format("No definition for src {} lang {}", file->get_path(), language));
+        auto text = sourceFile->getText();
+        // it might be more appropriate to do this when showing/changing tab, but then we need to support incremental changes
+        auto open = std::make_shared<SourceOpen>(file, lspServer->getLanguage()->getLspLanguage(), 0, text);
+        lspServer->communicate(open);
+
+        auto lookup = std::make_shared<SourceDocumentRef>(pos, this, method);
+        lspServer->communicate(lookup);
+
+        auto close = std::make_shared<LspClose>(file);
+        lspServer->communicate(close);
     }
 }
 
 void
-SourceView::gotoFilePos(const Glib::RefPtr<Gio::File>& file, const TextPos& pos)
+SourceView::gotoFilePos(const LspLocation& pos)
 {
-    std::cout << "SourceView::gotDefinition"
-              << " file " << file->get_path()
-              << " pos " << pos.line << ", " << pos.character << std::endl;
+    std::cout << "SourceView::gotoFilePos"
+              << " file " << pos.getUri()->get_path()
+              << " pos " << pos.getStartLine() << ", " << pos.getStartCharacter() << std::endl;
+    Glib::RefPtr<Gio::File> file = pos.getUri();
     auto view = findView(file);
     if (!view) {
         view = addFile(file);

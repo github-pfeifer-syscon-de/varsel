@@ -41,12 +41,12 @@ public:
     void save();
     void load();
     bool checkSave();
-    TextPos getPosition();
-    void showDocumentRef(const TextPos& pos, const Glib::ustring& method);
+    LspLocation getPosition();
+    void showDocumentRef(const LspLocation& pos, const Glib::ustring& method);
     Glib::ustring getLanguage();
     Glib::RefPtr<Gio::File> getFile();
     Glib::ustring getText();
-    void show(const TextPos& pos);
+    void show(const LspLocation& pos);
     Gtk::Widget* getWidget();
 
     static constexpr size_t BUF_SIZE{8u*1024u};
@@ -67,3 +67,4 @@ private:
     Gtk::ScrolledWindow* m_scrollView{nullptr};
 };
 
+using PtrSourceFile = std::shared_ptr<SourceFile>;

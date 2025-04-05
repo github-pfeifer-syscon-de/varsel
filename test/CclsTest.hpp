@@ -27,23 +27,22 @@ class RpcLaunch;
 class CclsTest;
 
 class CclsTestInit
-: public CclsInit
+: public LspInit
 {
 public:
-    CclsTestInit(RpcLaunch* rpcLaunch, CclsTest* cclsTest, const Glib::RefPtr<Gio::File>& file);
+    CclsTestInit(CclsTest* cclsTest, const Glib::RefPtr<Gio::File>& file);
     explicit CclsTestInit(const CclsTestInit& orig) = delete;
     virtual ~CclsTestInit() = default;
 
-    void result(const std::shared_ptr<psc::json::JsonValue>& result) override;
+    void result(const psc::json::PtrJsonValue& result) override;
 private:
-    RpcLaunch* m_rpcLaunch;
     CclsTest* m_cclsTest;
     Glib::RefPtr<Gio::File> m_projDir;
 };
 
 class CclsTest
 : public Gio::Application
-, public CclsStatusListener
+, public LspStatusListener
 {
 public:
     CclsTest();
@@ -54,7 +53,7 @@ public:
     void initalized();
     bool getResult();
     void result();
-    TextPos find(const Glib::ustring& text, Glib::UStringView find);
+    LspLocation find(const Glib::ustring& text, Glib::UStringView find);
     void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent) override;
     void serverExited() override;
 protected:
@@ -66,6 +65,6 @@ private:
     Glib::RefPtr<Glib::MainLoop> m_mainLoop;
     bool m_result{false};
     Glib::RefPtr<Gio::File> m_projDir;
-    std::shared_ptr<CcLangServer> m_ccls;
+    std::shared_ptr<LspServer> m_ccls;
 };
 

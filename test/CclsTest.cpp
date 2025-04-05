@@ -18,12 +18,12 @@
 
 #include <iostream>
 
-#include <CCLangServer.hpp>
+#include <LspServer.hpp>
 #include <JsonObj.hpp>
 #include <Log.hpp>
 
 #include "CclsTest.hpp"
-
+#include "Language.hpp"
 
 
 CclsTest::CclsTest()
@@ -39,9 +39,8 @@ CclsTest::getResult()
 }
 
 
-CclsTestInit::CclsTestInit(RpcLaunch* rpcLaunch, CclsTest* cclsTest, const Glib::RefPtr<Gio::File>& projDir)
-: CclsInit(projDir)
-, m_rpcLaunch{rpcLaunch}
+CclsTestInit::CclsTestInit(CclsTest* cclsTest, const Glib::RefPtr<Gio::File>& projDir)
+: LspInit(projDir, nullptr)
 , m_cclsTest{cclsTest}
 , m_projDir{projDir}
 {
@@ -49,7 +48,7 @@ CclsTestInit::CclsTestInit(RpcLaunch* rpcLaunch, CclsTest* cclsTest, const Glib:
 
 
 void
-CclsTestInit::result(const std::shared_ptr<psc::json::JsonValue>& json)
+CclsTestInit::result(const psc::json::PtrJsonValue& json)
 {
     if (json->isObject()) {
         auto obj = json->getObject();
@@ -63,23 +62,22 @@ CclsTestInit::result(const std::shared_ptr<psc::json::JsonValue>& json)
 }
 
 
-TextPos
+LspLocation
 CclsTest::find(const Glib::ustring& text, Glib::UStringView what)
 {
-    TextPos tpos{0, 0};
+    LspLocation tpos;
     auto pos = text.find(what.c_str());
     if (pos != text.npos) {
         --pos;
         auto nl = text.rfind('\n', pos);
         if (nl != text.npos) {
-            tpos.character = pos - nl;
+            tpos.setStartCharacter(pos - nl);
         }
         nl = pos;
-        do {
+        while (nl != text.npos && nl > 0) {
             nl = text.rfind('\n', nl-1);
-            ++tpos.line;
+            tpos.setStartLine(tpos.getStartLine() + 1);
         }
-        while (nl != text.npos);
     }
     return tpos;
 }
@@ -93,20 +91,21 @@ CclsTest::notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percen
               << " percent " << percent << std::endl;
     if (status == "index" && kind == CclsStatusKind::End) {
         auto src = m_projDir->get_child("JsonObj.cpp");
-        auto open = std::make_shared<CclsOpen>(src, "cpp", 0);
+        auto open = std::make_shared<LspOpen>(src, "cpp", 0);
         m_ccls->communicate(open);
         auto txt = open->getText();
         auto pos = find(txt, "JsonObj::JsonObj");
-        std::cout << "line " << pos.line << " column " << pos.character << std::endl;
+        pos.setUri(src);
+        std::cout << " location " << pos.getStartLine() << ", " << pos.getStartCharacter() << std::endl;
 
-        auto def = std::make_shared<CclsDocumentRef>(src, pos, CclsDocumentRef::DEFININION_METHOD);
+        auto def = std::make_shared<LspDocumentRef>(pos, LspDocumentRef::DEFININION_METHOD);
         m_ccls->communicate(def);
 
-        auto close = std::make_shared<CclsClose>(src);
+        auto close = std::make_shared<LspClose>(src);
         m_ccls->communicate(close);
 
         m_mainContext->signal_timeout().connect_seconds_once(
-            sigc::mem_fun(*m_ccls.get(), &CcLangServer::shutdown), 2);
+            sigc::mem_fun(*m_ccls.get(), &LspServer::shutdown), 2);
         // give callback some time to work... (while freeing main thread)
         m_mainContext->signal_timeout().connect_seconds_once(
             sigc::mem_fun(*this, &CclsTest::result), 3);
@@ -129,13 +128,14 @@ CclsTest::start()
 {
     auto log = psc::log::Log::create("cclsTest", psc::log::Type::Console);
     log->setLevel(psc::log::Level::Debug);
-    m_ccls = std::make_shared<CcLangServer>("/usr/bin/ccls --log-file=/tmp/ccls.log --init={\"index\":{\"threads\":1}}");
-    m_ccls->setStatusListener(this);
+    auto lang = Languages::createCcls();
     auto here = Gio::File::create_for_path(".");
     m_projDir = here->resolve_relative_path("../../genericImg/src");
-    auto dotccls = m_projDir->get_child(".ccls");
-    if (dotccls->query_exists()) {
-        auto init = std::make_shared<CclsTestInit>(m_ccls.get(), this, m_projDir);
+    auto srcFile = m_projDir->get_child("JsonObj.hpp");
+    if (lang->hasPrerequisite(srcFile)) {
+        m_ccls = std::make_shared<LspServer>(lang); // "/usr/bin/ccls --log-file=/tmp/ccls.log --init={\"index\":{\"threads\":1}}"
+        m_ccls->setStatusListener(this);
+        auto init = std::make_shared<CclsTestInit>(this, m_projDir);
         m_ccls->communicate(init);
 
         m_mainContext->signal_timeout().connect_seconds_once(
@@ -147,7 +147,7 @@ CclsTest::start()
     }
     else {
         m_result = true;    // Don't count this as failure
-        std::cout << "The file " << dotccls->get_path() << " was not found, test not executed!" << std::endl;
+        std::cout << "A supported language for file " << srcFile->get_path() << " was not found, test not executed!" << std::endl;
         m_mainLoop->quit();
     }
 }
@@ -164,10 +164,6 @@ CclsTest::result()
         std::cout << "Quit main" << std::endl;
         m_mainLoop->quit();
     }, 1);
-    //auto genImg = Gio::File::create_for_path("/home/rpf/csrc.git/genericImg");
-    //auto json = json_build(genImg);
-    //std::cout << "json " << json << std::endl;
-    //m_result = (json == "{\"jsonrpc\":\"2.0\",\"id\":0,\"method\":\"initialize\",\"params\":{\"processId\":0,\"rootUri\":\"file:///home/rpf/csrc.git/genericImg\",\"capabilities\":{}}}");
 }
 
 void
