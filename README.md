@@ -52,6 +52,25 @@ Ctrl-D go to definition
 Ctrl-Shift-D go to declation
 
 Other implemenations for the language server protocol
-exist but i only tested ccls.
+exist but i only tested ccls
+(ccls was not consistenly able to complete indexing when
+the parallel mode was used so the contained settings
+use single thread mode).
+Idexing will take some time this is indicated by
+the progress at the bottom of the window
+(using language server function befor this has
+completed will probably not work).
+
+#### Language server config
+
 To add or change use the language sections in
 in "va_edit.conf" in ".config" in your home directory.
+The "execute" value is split befor execution, this
+allows passing parameters, but as spaces are used to
+separate parameters you probably want to avoid them
+whenever possible e.g. Json-Values can be written without.
+To give a parameter that contains spaces quotes " can used
+e.g. ... "This will be one parameter" ...
+(will be passed without quotes).
+To place a quote you need to double it e.g. "".
+

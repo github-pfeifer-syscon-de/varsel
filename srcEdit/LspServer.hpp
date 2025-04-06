@@ -21,7 +21,7 @@
 #include <memory>
 #include <JsonObj.hpp>
 
-#include "Language.hpp"
+#include "LspConf.hpp"
 #include "RpcLaunch.hpp"
 
 

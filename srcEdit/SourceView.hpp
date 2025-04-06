@@ -26,7 +26,7 @@
 #include "LspServer.hpp"
 #include "EventBus.hpp"
 #include "SourceFile.hpp"
-#include "Language.hpp"
+#include "LspConf.hpp"
 
 class EditApp;
 class SourceView;
@@ -100,7 +100,7 @@ private:
     Gtk::ProgressBar* m_progress{nullptr};
     std::vector<PtrSourceFile> m_files;
     std::map<std::string, PtrLspServer> m_ccLangServers;
-    Languages m_languages;
+    LspConfs m_languages;
 };
 
 

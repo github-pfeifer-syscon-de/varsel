@@ -23,7 +23,7 @@
 #include <Log.hpp>
 
 #include "CclsTest.hpp"
-#include "Language.hpp"
+#include "LspConf.hpp"
 
 
 CclsTest::CclsTest()
@@ -128,7 +128,7 @@ CclsTest::start()
 {
     auto log = psc::log::Log::create("cclsTest", psc::log::Type::Console);
     log->setLevel(psc::log::Level::Debug);
-    auto lang = Languages::createCcls();
+    auto lang = LspConfs::createCcls();
     auto here = Gio::File::create_for_path(".");
     m_projDir = here->resolve_relative_path("../../genericImg/src");
     auto srcFile = m_projDir->get_child("JsonObj.hpp");

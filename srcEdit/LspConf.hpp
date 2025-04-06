@@ -24,24 +24,36 @@
 #include <set>
 #include <glibmm.h>
 
-class Language
+class LspConf
 {
 public:
-    Language(const Glib::ustring& exec
+    LspConf(const std::shared_ptr<VarselConfig>& config
+            , const Glib::ustring& grp);
+    LspConf(const Glib::ustring& exec
             , const Glib::ustring& exts
             , const Glib::ustring& lspLanguage
             , const Glib::ustring& prerequisiteFile);
-    explicit Language(const Language& orig) = delete;
-    virtual ~Language() = default;
+    explicit LspConf(const LspConf& orig) = delete;
+    virtual ~LspConf() = default;
 
+    bool isValid();
+    void save(const std::shared_ptr<VarselConfig>& config, const Glib::ustring& grp);
     Glib::ustring getExecute();
     Glib::ustring getExtensions();
     Glib::ustring getLspLanguage();
     Glib::ustring getPrerequisiteFile();
 
     bool isExtension(const Glib::ustring& ext);
+    // checks if the local prerequisites are meet to use language e.g. .ccls file
     bool hasPrerequisite(const Glib::RefPtr<Gio::File>& file);
+    // checks if the global prerequisites are meet to use language e.g. /usr/bin/ccls
+    bool hasExecutable();
     static constexpr auto EXTENSTION_DELIM_CHAR{','};
+    static constexpr auto LANGUAGE_EXEC_KEY{"execute"};
+    static constexpr auto LANGUAGE_EXTENSIONS_KEY{"extensions"};
+    static constexpr auto LANGUAGE_LSP_LANGUAGE_KEY{"lspLanguage"};
+    static constexpr auto LANGUAGE_PREREQUISITEFILE_KEY{"prerequisiteFile"};
+
 private:
     Glib::ustring m_execute;
     Glib::ustring m_lspLanguage;
@@ -49,14 +61,14 @@ private:
     std::set<Glib::ustring> m_extensions;
 };
 
-using PtrLanguage = std::shared_ptr<Language>;
+using PtrLanguage = std::shared_ptr<LspConf>;
 
-class Languages
+class LspConfs
 {
 public:
-    Languages();
-    explicit Languages(const Languages& orig) = delete;
-    virtual ~Languages() = default;
+    LspConfs();
+    explicit LspConfs(const LspConfs& orig) = delete;
+    virtual ~LspConfs() = default;
 
     PtrLanguage getLanguage(const Glib::RefPtr<Gio::File>& file);
     void readConfig(const std::shared_ptr<VarselConfig>& config);
@@ -66,10 +78,6 @@ public:
 protected:
     static constexpr auto MAX_LANGUAGES{100};
     static constexpr auto LANGUAGE_GPR{"language%03d"};
-    static constexpr auto LANGUAGE_EXEC_KEY{"execute"};
-    static constexpr auto LANGUAGE_EXTENSIONS_KEY{"extensions"};
-    static constexpr auto LANGUAGE_LSP_LANGUAGE_KEY{"lspLanguage"};
-    static constexpr auto LANGUAGE_PREREQUISITEFILE_KEY{"prerequisiteFile"};
 
 
 private:

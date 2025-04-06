@@ -375,9 +375,10 @@ LspServer::shutdown()
 const std::vector<Glib::ustring>
 LspServer::buildArgs()
 {
-    std::vector<Glib::ustring> args;
-    args.reserve(8);
-    StringUtils::split(m_language->getExecute(), ' ', args);
+    auto args = StringUtils::splitQuoted(m_language->getExecute(), ' ', '"');
+    //for (size_t i = 0; i < args.size(); ++i) {
+    //    std::cout << "Arg[" << i << "] = \"" << args[i] << "\"" << std::endl;
+    //}
     return args;
 }
 
