@@ -24,37 +24,37 @@
 //   as practical results may vary...
 
 class RpcLaunch;
-class CclsTest;
+class LspTest;
 
-class CclsTestInit
+class LspTestInit
 : public LspInit
 {
 public:
-    CclsTestInit(CclsTest* cclsTest, const Glib::RefPtr<Gio::File>& file);
-    explicit CclsTestInit(const CclsTestInit& orig) = delete;
-    virtual ~CclsTestInit() = default;
+    LspTestInit(LspTest* cclsTest, const Glib::RefPtr<Gio::File>& file);
+    explicit LspTestInit(const LspTestInit& orig) = delete;
+    virtual ~LspTestInit() = default;
 
     void result(const psc::json::PtrJsonValue& result) override;
 private:
-    CclsTest* m_cclsTest;
+    LspTest* m_cclsTest;
     Glib::RefPtr<Gio::File> m_projDir;
 };
 
-class CclsTest
+class LspTest
 : public Gio::Application
 , public LspStatusListener
 {
 public:
-    CclsTest();
-    explicit CclsTest(const CclsTest& orig) = delete;
-    virtual ~CclsTest() = default;
+    LspTest();
+    explicit LspTest(const LspTest& orig) = delete;
+    virtual ~LspTest() = default;
 
     void on_activate() override;
     void initalized();
     bool getResult();
     void result();
     LspLocation find(const Glib::ustring& text, Glib::UStringView find);
-    void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent) override;
+    void notify(const Glib::ustring& status, LspStatusKind kind, gint64 percent) override;
     void serverExited() override;
 protected:
     void start();
@@ -65,6 +65,7 @@ private:
     Glib::RefPtr<Glib::MainLoop> m_mainLoop;
     bool m_result{false};
     Glib::RefPtr<Gio::File> m_projDir;
-    std::shared_ptr<LspServer> m_ccls;
+    PtrLspConf m_lspConf;
+    std::shared_ptr<LspServer> m_lspServer;
 };
 

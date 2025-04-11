@@ -358,11 +358,14 @@ RpcLaunch::notify(bool err, const gchar* string)
                         return psc::fmt::format("error {} parsing json", exc.what());
                     });
             }
-            m_active = false;
-            if (m_queue.size() > 0) {
+            std::lock_guard<std::mutex> lock(m_queueMutex);
+            if (m_queue.size() > 0) {   // Keep active if next is available
                 auto next = m_queue.front();
                 m_queue.pop();
                 doCommunicate(next);
+            }
+            else {
+                m_active = false;
             }
         }
     }
@@ -383,6 +386,7 @@ RpcLaunch::getNextReqId()
 void
 RpcLaunch::communicate(const std::shared_ptr<RpcMessage>& message)
 {
+    std::lock_guard<std::mutex> lock(m_queueMutex);
     if (m_active) {
         m_queue.push(message);
     }

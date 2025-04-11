@@ -84,7 +84,7 @@ public:
     void showFiles(const std::vector<Glib::RefPtr<Gio::File>>& matchingFiles);
     void showDocumentRef(SourceFile* sourceFile, const LspLocation& pos, const Glib::ustring& method);
     void gotoFilePos(const LspLocation& pos);
-    void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent);
+    void notify(const Glib::ustring& status, LspStatusKind kind, gint64 percent);
     void serverExited();
 
     static constexpr auto LANGUAGESERVER_ARGS = "languageServerArgs";

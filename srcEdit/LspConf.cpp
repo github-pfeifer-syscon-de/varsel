@@ -21,26 +21,26 @@
 #include "LspConf.hpp"
 
 LspConf::LspConf(const std::shared_ptr<VarselConfig>& config, const Glib::ustring& grp)
-: LspConf::LspConf(config->getString(grp.c_str(), LANGUAGE_EXEC_KEY)
-               , config->getString(grp.c_str(), LANGUAGE_EXTENSIONS_KEY)
+: LspConf(config->getString(grp.c_str(), LANGUAGE_EXEC_KEY)
+               , config->getStringList(grp.c_str(), LANGUAGE_EXTENSIONS_KEY)
                , config->getString(grp.c_str(), LANGUAGE_LSP_LANGUAGE_KEY)
-               , config->getString(grp.c_str(), LANGUAGE_PREREQUISITEFILE_KEY))
+               , config->getStringList(grp.c_str(), LANGUAGE_PREREQUISITEFILE_KEY)
+               , config->getBoolean(grp.c_str(), LANGUAGE_INDEXING_REQUIRED, false))
 {
 }
 
 LspConf::LspConf(const Glib::ustring& exec
-            , const Glib::ustring& exts
+            , const std::vector<Glib::ustring>& exts
             , const Glib::ustring& lspLanguage
-            , const Glib::ustring& prerequisiteFile)
+            , const std::vector<Glib::ustring>& prerequisiteFile
+            , bool needsIndexing)
 : m_execute{exec}
 , m_lspLanguage{lspLanguage}
 , m_prerequisiteFile{prerequisiteFile}
+, m_indexingNeeded{needsIndexing}
 {
-    std::vector<Glib::ustring> extensions;
-    extensions.reserve(16);
-    StringUtils::split(exts, EXTENSTION_DELIM_CHAR, extensions);
-    for (auto ext : extensions) {
-        m_extensions.emplace(std::move(ext));
+    for (auto& ext : exts) {
+        m_extensions.insert(ext);
     }
 }
 
@@ -54,9 +54,10 @@ void
 LspConf::save(const std::shared_ptr<VarselConfig>& config, const Glib::ustring& grp)
 {
     config->setString(grp.c_str(), LANGUAGE_EXEC_KEY, getExecute());
-    config->setString(grp.c_str(), LANGUAGE_EXTENSIONS_KEY, getExtensions());
+    config->setStringList(grp.c_str(), LANGUAGE_EXTENSIONS_KEY, getExtensions());
     config->setString(grp.c_str(), LANGUAGE_LSP_LANGUAGE_KEY, getLspLanguage());
-    config->setString(grp.c_str(), LANGUAGE_PREREQUISITEFILE_KEY, getPrerequisiteFile());
+    config->setStringList(grp.c_str(), LANGUAGE_PREREQUISITEFILE_KEY, getPrerequisiteFile());
+    config->setBoolean(grp.c_str(), LANGUAGE_INDEXING_REQUIRED, isIndexingNeeded());
 }
 
 Glib::ustring
@@ -65,19 +66,10 @@ LspConf::getExecute()
     return m_execute;
 }
 
-Glib::ustring
+std::set<Glib::ustring>
 LspConf::getExtensions()
 {
-    Glib::ustring ret;
-    ret.reserve(32);
-    auto delim = Glib::ustring(1, EXTENSTION_DELIM_CHAR);
-    for (auto ext : m_extensions) {
-        if (ret.size() > 0) {
-            ret += delim;
-        }
-        ret += ext;
-    }
-    return ret;
+    return m_extensions;
 }
 
 Glib::ustring
@@ -86,7 +78,7 @@ LspConf::getLspLanguage()
     return m_lspLanguage;
 }
 
-Glib::ustring
+std::vector<Glib::ustring>
 LspConf::getPrerequisiteFile()
 {
     return m_prerequisiteFile;
@@ -95,10 +87,17 @@ LspConf::getPrerequisiteFile()
 bool
 LspConf::hasPrerequisite(const Glib::RefPtr<Gio::File>& file)
 {
+    auto dir = file->get_parent();
     if (!m_prerequisiteFile.empty()) {
-        auto dir = file->get_parent();
-        auto dotccls = dir->get_child(m_prerequisiteFile);
-        return dotccls->query_exists();
+        for (auto& part : m_prerequisiteFile) {
+            auto preqFile = dir->get_child(part);
+            //std::cout << "LspConf::hasPrerequisite check " << preqFile->get_basename()
+            //          << " exists " << std::boolalpha << preqFile->query_exists() << std::endl;
+            if (preqFile->query_exists()) {
+                return true;
+            }
+        }
+        return false;
     }
     return true;
 }
@@ -106,11 +105,15 @@ LspConf::hasPrerequisite(const Glib::RefPtr<Gio::File>& file)
 bool
 LspConf::hasExecutable()
 {
-    std::vector<Glib::ustring> parts;
-    parts.reserve(8);
-    StringUtils::split(m_execute, ' ', parts);
+    std::vector<Glib::ustring> parts = StringUtils::splitQuoted(m_execute, ' ', '\"');
     auto file = Gio::File::create_for_path(parts[0]);
     return file->query_exists();
+}
+
+bool
+LspConf::isIndexingNeeded()
+{
+    return m_indexingNeeded;
 }
 
 bool
@@ -124,11 +127,11 @@ LspConfs::LspConfs()
 {
 }
 
-PtrLanguage
+PtrLspConf
 LspConfs::getLanguage(const Glib::RefPtr<Gio::File>& file)
 {
     Glib::ustring ext = StringUtils::getExtension(file);
-    PtrLanguage language;
+    PtrLspConf language;
     for (auto& lang : m_languages) {
         if (lang->isExtension(ext)
          && lang->hasPrerequisite(file)
@@ -154,7 +157,7 @@ LspConfs::readConfig(const std::shared_ptr<VarselConfig>& config)
         }
     }
     if (m_languages.empty()) {
-        m_languages.push_back(createCcls());
+        m_languages.push_back(createDefault());
     }
 }
 
@@ -169,8 +172,43 @@ LspConfs::saveConfig(const std::shared_ptr<VarselConfig>& config)
     }
 }
 
-PtrLanguage
+std::vector<Glib::ustring>
+LspConfs::createCsrc()
+{
+    std::vector<Glib::ustring> exts{"h","H","hpp","hh","hxx","c","C","cpp","c++","cc","cxx",};
+    return exts;
+}
+
+PtrLspConf
 LspConfs::createCcls()
 {
-    return std::make_shared<LspConf>("/usr/bin/ccls \"--init={\"\"index\"\":{\"\"threads\"\":1}}\"", "h,H,hpp,hh,hxx,c,C,cpp,c++,cc,cxx", "cpp", ".ccls");
+    std::vector<Glib::ustring> exts = createCsrc();
+    std::vector<Glib::ustring> reqs{".ccls", "compile_commands.json"};
+    // - threads:1 was selected as otherwise there seem to be issues to complete indexing
+    return std::make_shared<LspConf>(
+              "/usr/bin/ccls \"--init={\"\"index\"\":{\"\"threads\"\":1}}\""
+            , exts
+            , LSP_LANGUAGE_CPP
+            , reqs
+            , true);
+
+}
+
+PtrLspConf
+LspConfs::createClangd()
+{
+    auto exts = createCsrc();
+    std::vector<Glib::ustring> reqs{"compile_commands.json"};
+    return std::make_shared<LspConf>(
+            "/usr/bin/clangd"
+            , exts
+            , LSP_LANGUAGE_CPP
+            , reqs
+            , false);
+}
+
+PtrLspConf
+LspConfs::createDefault()
+{
+    return createClangd();
 }

@@ -32,18 +32,25 @@ F9 open from terminal (with a selection it will be tried to be used as a filenam
 
 A simple implementation for the language server protocol was
 added to the editor.
-As a starting point ccls is added by default.
-To make ccls work, a .ccls file is needed in
-the source directory.
-It can be created by the make2ccls.sh
-script (it is included in genericImg). Use:
+I tested the ccls and clangd implementions see (LspConf getDefault).
+To make these work, a config file (either .ccls or compile_commands.json)
+file is needed in the source directory.
+The .ccls can be created by the make2ccls.sh
+script (it is included in genericImg). Use either:
 <pre>
 cd genericImg/src
 ../make2ccls.sh
 </pre>
+or if you have the bear tool around for clang-tidy ...:
+<pre>
+cd genericImg/src
+make clean
+bear -- make
+</pre>
+creates compile_commands.json (works with ccls and clangd).
 If the file was created in genericImg/src it is used
-as a test case here. And of course a ccls install provided
-by your distro is required as well.
+as a test case here. And of course a ccls or clangd
+install provided by your distro is required as well.
 
 At the moment these two key-bindings are used:
 
@@ -51,12 +58,10 @@ Ctrl-D go to definition
 
 Ctrl-Shift-D go to declation
 
-Other implemenations for the language server protocol
-exist but i only tested ccls
-(ccls was not consistenly able to complete indexing when
-the parallel mode was used so the contained settings
-use single thread mode).
-Idexing will take some time this is indicated by
+The implemenations behave diffrently
+ccls night not give useful answers before indexing
+is completed.
+This will take some time and is indicated by
 the progress at the bottom of the window
 (using language server function befor this has
 completed will probably not work).
@@ -68,9 +73,9 @@ in "va_edit.conf" in ".config" in your home directory.
 The "execute" value is split befor execution, this
 allows passing parameters, but as spaces are used to
 separate parameters you probably want to avoid them
-whenever possible e.g. Json-Values can be written without.
+whenever possible e.g. Json-values can be written without.
 To give a parameter that contains spaces quotes " can used
 e.g. ... "This will be one parameter" ...
 (will be passed without quotes).
-To place a quote you need to double it e.g. "".
+To place a quote on output you need to double it e.g. "".
 

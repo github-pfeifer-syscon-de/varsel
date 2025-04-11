@@ -221,13 +221,7 @@ SourceFile::load(const Glib::RefPtr<Gio::File>& file)
 Glib::ustring
 SourceFile::getExtension()
 {
-    Glib::ustring ext;
-    auto dispName = m_eventItem->getFileInfo()->get_display_name();
-    auto pos = dispName.find_last_of('.');
-    if (pos != dispName.npos) {
-        ++pos;
-        ext = dispName.substr(pos);
-    }
+    Glib::ustring ext = StringUtils::getExtension(m_eventItem->getFile());
     return ext;
 }
 

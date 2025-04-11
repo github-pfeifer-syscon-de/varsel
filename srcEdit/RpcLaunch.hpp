@@ -19,12 +19,12 @@
 #pragma once
 
 #include <giomm.h>
-#include <future>
 #include <memory>
 #include <JsonHelper.hpp>
 #include <JsonObj.hpp>
 #include <queue>
 #include <atomic>
+#include <mutex>
 
 class RpcLaunch;
 
@@ -131,5 +131,5 @@ private:
     std::map<gint64, std::shared_ptr<RpcRequest>> m_reponseMap;
     std::queue<std::shared_ptr<RpcMessage>> m_queue;
     std::atomic<bool> m_active{false};
-
+    mutable std::mutex m_queueMutex; // serialize queue handling
 };

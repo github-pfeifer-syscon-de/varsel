@@ -30,38 +30,41 @@ public:
     LspConf(const std::shared_ptr<VarselConfig>& config
             , const Glib::ustring& grp);
     LspConf(const Glib::ustring& exec
-            , const Glib::ustring& exts
+            , const std::vector<Glib::ustring>& exts
             , const Glib::ustring& lspLanguage
-            , const Glib::ustring& prerequisiteFile);
+            , const std::vector<Glib::ustring>& prerequisiteFile
+            , bool indexingNeeded);
     explicit LspConf(const LspConf& orig) = delete;
     virtual ~LspConf() = default;
 
     bool isValid();
     void save(const std::shared_ptr<VarselConfig>& config, const Glib::ustring& grp);
     Glib::ustring getExecute();
-    Glib::ustring getExtensions();
+    std::set<Glib::ustring> getExtensions();
     Glib::ustring getLspLanguage();
-    Glib::ustring getPrerequisiteFile();
+    std::vector<Glib::ustring> getPrerequisiteFile();
 
     bool isExtension(const Glib::ustring& ext);
     // checks if the local prerequisites are meet to use language e.g. .ccls file
     bool hasPrerequisite(const Glib::RefPtr<Gio::File>& file);
     // checks if the global prerequisites are meet to use language e.g. /usr/bin/ccls
     bool hasExecutable();
-    static constexpr auto EXTENSTION_DELIM_CHAR{','};
+    bool isIndexingNeeded();
     static constexpr auto LANGUAGE_EXEC_KEY{"execute"};
     static constexpr auto LANGUAGE_EXTENSIONS_KEY{"extensions"};
     static constexpr auto LANGUAGE_LSP_LANGUAGE_KEY{"lspLanguage"};
     static constexpr auto LANGUAGE_PREREQUISITEFILE_KEY{"prerequisiteFile"};
-
+    static constexpr auto LANGUAGE_INDEXING_REQUIRED{"requiresIndexing"};
+protected:
 private:
     Glib::ustring m_execute;
-    Glib::ustring m_lspLanguage;
-    Glib::ustring m_prerequisiteFile;
     std::set<Glib::ustring> m_extensions;
+    Glib::ustring m_lspLanguage;
+    std::vector<Glib::ustring> m_prerequisiteFile;
+    bool m_indexingNeeded;
 };
 
-using PtrLanguage = std::shared_ptr<LspConf>;
+using PtrLspConf = std::shared_ptr<LspConf>;
 
 class LspConfs
 {
@@ -70,17 +73,21 @@ public:
     explicit LspConfs(const LspConfs& orig) = delete;
     virtual ~LspConfs() = default;
 
-    PtrLanguage getLanguage(const Glib::RefPtr<Gio::File>& file);
+    PtrLspConf getLanguage(const Glib::RefPtr<Gio::File>& file);
     void readConfig(const std::shared_ptr<VarselConfig>& config);
     void saveConfig(const std::shared_ptr<VarselConfig>& config);
     // as a starting point ccls support is added
-    static PtrLanguage createCcls();
+    static PtrLspConf createDefault();
 protected:
     static constexpr auto MAX_LANGUAGES{100};
     static constexpr auto LANGUAGE_GPR{"language%03d"};
+    static constexpr auto LSP_LANGUAGE_CPP{"cpp"};
+    static std::vector<Glib::ustring>  createCsrc();
+    static PtrLspConf createCcls();
+    static PtrLspConf createClangd();
 
 
 private:
-    std::vector<PtrLanguage> m_languages;
+    std::vector<PtrLspConf> m_languages;
 };
 

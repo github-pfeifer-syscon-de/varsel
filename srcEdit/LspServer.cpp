@@ -82,6 +82,8 @@ LspInit::create(RpcLaunch* rpcLaunch)
     caps->createObj("textDocument/didOpen");
     caps->createObj("textDocument/didChange");
     caps->createObj("textDocument/didClose");
+    //caps->createObj("textDocument/typeDefinition");   // ? unsure we did get this right
+    // caps->createObj("textDocument/signatureHelp");   // ?
     //auto textDef = caps->createObj("textDocument.definition");
     //textDef->set("dynamicRegistration", false);
 	//textDef->set("linkSupport", false);
@@ -355,7 +357,7 @@ LspDocumentRef::create(RpcLaunch* rpcLaunch)
 }
 
 
-LspServer::LspServer(const PtrLanguage& language)
+LspServer::LspServer(const PtrLspConf& language)
 : RpcLaunch::RpcLaunch()
 , m_language{language}
 {
@@ -423,17 +425,17 @@ LspServer::decodeStatus(JsonObject* jsonObj)
         }
         if (json_object_has_member(params, "value")) {
             auto value = json_object_get_object_member(params, "value");
-            CclsStatusKind statusKind{CclsStatusKind::None};
+            LspStatusKind statusKind{LspStatusKind::None};
             if (json_object_has_member(value, "kind")) {
                 auto kind = json_object_get_string_member(value, "kind");
                 if (std::strcmp(kind, "begin") == 0) {
-                    statusKind = CclsStatusKind::Begin;
+                    statusKind = LspStatusKind::Begin;
                 }
                 else if (std::strcmp(kind, "report") == 0) {
-                    statusKind = CclsStatusKind::Report;
+                    statusKind = LspStatusKind::Report;
                 }
                 else if (std::strcmp(kind, "end") == 0) {
-                    statusKind = CclsStatusKind::End;
+                    statusKind = LspStatusKind::End;
                 }
 
                 if (json_object_has_member(value, "title")) {
@@ -502,7 +504,7 @@ LspServer::handleStatus(int id, JsonObject* jsonObj)
     }
 }
 
-PtrLanguage
+PtrLspConf
 LspServer::getLanguage()
 {
     return m_language;

@@ -81,3 +81,6 @@
 /test/ccls_test.log
 /test/ccls_test.trs
 /test/ccls_test
+/test/lsp_test.log
+/test/lsp_test
+/test/lsp_test.trs

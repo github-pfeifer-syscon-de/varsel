@@ -149,14 +149,15 @@ public:
     virtual const char* getMethod();
     psc::json::PtrJsonObj create(RpcLaunch* rpcLaunch) override;
 
-    static constexpr auto DEFININION_METHOD = "textDocument/definition";
-    static constexpr auto DECLATATION_METHOD = "textDocument/declaration";
+    static constexpr auto DEFININION_METHOD{"textDocument/definition"};
+    static constexpr auto DECLATATION_METHOD{"textDocument/declaration"};
+    static constexpr auto TYPE_DEFINITION_METHOD{"textDocument/typeDefinition"};
 private:
     LspLocation m_pos;
     Glib::ustring m_method;
 };
 
-enum class CclsStatusKind
+enum class LspStatusKind
 {
     None,
     Begin,
@@ -167,7 +168,7 @@ enum class CclsStatusKind
 class LspStatusListener
 {
 public:
-    virtual void notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent) = 0;
+    virtual void notify(const Glib::ustring& status, LspStatusKind kind, gint64 percent) = 0;
     virtual void serverExited() = 0;
 };
 
@@ -175,7 +176,7 @@ class LspServer
 : public RpcLaunch
 {
 public:
-    LspServer(const PtrLanguage& language);
+    LspServer(const PtrLspConf& language);
     explicit LspServer(const LspServer& orig) = delete;
     virtual ~LspServer() = default;
 
@@ -190,12 +191,12 @@ public:
     Glib::ustring getMessage();
     Glib::ustring getTitle();
     gint64 getPercent();
-    PtrLanguage getLanguage();
+    PtrLspConf getLanguage();
 protected:
     void decodeStatus(JsonObject* jsonObj);
     void serverExited() override;
 private:
-    PtrLanguage m_language;
+    PtrLspConf m_language;
     Glib::ustring m_status;
     Glib::ustring m_message;
     Glib::ustring m_title;

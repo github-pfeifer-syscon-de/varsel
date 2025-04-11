@@ -19,6 +19,7 @@
 #include <iostream>
 #include <psc_i18n.hpp>
 #include <Log.hpp>
+#include <psc_format.hpp>
 
 #include "SourceView.hpp"
 #include "EditApp.hpp"
@@ -117,20 +118,20 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
 #pragma GCC diagnostic ignored "-Wswitch"   // switches are incomplete by intention
 
 void
-SourceView::notify(const Glib::ustring& status, CclsStatusKind kind, gint64 percent)
+SourceView::notify(const Glib::ustring& status, LspStatusKind kind, gint64 percent)
 {
     double value = 0.0;
     Glib::ustring stat;
     switch (kind) {
-    case CclsStatusKind::Begin:
+    case LspStatusKind::Begin:
         value = 0.0;
         stat = Glib::ustring(_("Started ")) + status;
         break;
-    case CclsStatusKind::Report:
+    case LspStatusKind::Report:
         value = static_cast<double>(percent) / 100.0;
         stat = status;
         break;
-    case CclsStatusKind::End:
+    case LspStatusKind::End:
         value = 1.0;
         stat = Glib::ustring(_("Completed ")) + status;
         break;
@@ -330,8 +331,14 @@ SourceView::showDocumentRef(SourceFile* sourceFile, const LspLocation& pos, cons
     if (ccLangServIt != m_ccLangServers.end()) {
         auto lspServer = (*ccLangServIt).second;
         if (!lspServer->getLanguage()->hasPrerequisite(file)) {
-            showMessage(psc::fmt::vformat(_("To use this functions a language server protocol implementation and a setup e.g. .ccls file is required in {}")
-                                            , psc::fmt::make_format_args(path)));
+            auto preq = lspServer->getLanguage()->getPrerequisiteFile();
+            Glib::ustring parts;
+            parts.reserve(64);
+            for (auto& pre : preq) {
+                parts += pre + ";";
+            }
+            showMessage(psc::fmt::vformat(_("To use this functions a language server protocol implementation and a setup e.g. {} file(s) are required in {}")
+                                         , psc::fmt::make_format_args(parts, path)));
             return; // no lookup possible
         }
         if (!lspServer->supportsMethod(method)) {

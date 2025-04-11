@@ -1,6 +1,6 @@
 
 
-TESTS = git_test archiv_test ccls_test
+TESTS = git_test archiv_test lsp_test
 
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
@@ -24,7 +24,7 @@ AM_CXXFLAGS = -Wall \
 
 AM_LDFLAGS =
 
-check_PROGRAMS = git_test archiv_test ccls_test
+check_PROGRAMS = git_test archiv_test lsp_test
 
 git_test_LDADD =  \
 	../srcList/va_list-GitRepository.o \
@@ -42,12 +42,12 @@ archiv_test_LDADD = \
 
 archiv_test_SOURCES = ArchivTest.cpp
 
-ccls_test_LDADD = \
+lsp_test_LDADD = \
 	../srcLib/libcommon.a \
 	../srcEdit/va_edit-RpcLaunch.o \
 	../srcEdit/va_edit-LspServer.o \
-	../srcEdit/va_edit-Language.o \
+	../srcEdit/va_edit-LspConf.o \
 	$(GLIBMM_LIBS) \
 	$(GENERICIMG_LIBS)
 
-ccls_test_SOURCES = CclsTest.cpp
+lsp_test_SOURCES = LspTest.cpp
