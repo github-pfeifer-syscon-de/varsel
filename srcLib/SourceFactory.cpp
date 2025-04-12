@@ -18,6 +18,7 @@
 
 #include <iostream>
 #include <glibmm.h>
+#include <StringUtils.hpp>
 
 #include "SourceFactory.hpp"
 
@@ -37,9 +38,17 @@ SourceFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
         for (auto item : openEvent->getFiles()) {
             //GtkSourceLanguage* srcLang = SourceFile::getSourceLanguage(item);
             auto filetype = item->getFile()->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
-            if (filetype == Gio::FileType::FILE_TYPE_REGULAR) {
+            auto fileInfo = item->getFileInfo();
+            if (filetype == Gio::FileType::FILE_TYPE_REGULAR
+             && isEditable(fileInfo)) {   // at least rule out binaries?
                 matchingFiles.push_back(item);
                 openEvent->remove(item);
+            }
+            else {
+                std::cout << "SourceFactory::notify skipped "
+                          << item->getFile()->get_path()
+                          << " type " << filetype
+                          << " content " << fileInfo->get_attribute_string("standard::content-type") << std::endl;
             }
         }
         if (matchingFiles.size() > 0) {
@@ -47,6 +56,22 @@ SourceFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
         }
     }
 }
+
+bool
+SourceFactory::isEditable(const Glib::RefPtr<Gio::FileInfo>& fileInfo)
+{
+    auto contentType = fileInfo->get_attribute_string("standard::content-type");
+    if (StringUtils::startsWith(contentType, "text/")) {   // any text should work
+        return true;
+    }
+    if ("application/x-gtk-builder" == contentType
+     || "application/xml" == contentType
+     || "application/x-shellscript" == contentType) {
+        return true;
+    }
+    return false;
+}
+
 
 void
 SourceFactory::createSourceWindow(const std::vector<std::shared_ptr<EventItem>>& matchingFiles)

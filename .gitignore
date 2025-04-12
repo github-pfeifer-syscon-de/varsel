@@ -75,7 +75,6 @@
 /resList/varsel.desktop
 /srcEdit/.deps/
 /srcEdit/.libs/
-/srcLib/.deps/
 /PKGBUILD
 /src/configure.ac
 /test/ccls_test.log
@@ -84,3 +83,5 @@
 /test/lsp_test.log
 /test/lsp_test
 /test/lsp_test.trs
+/srcLib/.deps/
+/srcList/.deps/

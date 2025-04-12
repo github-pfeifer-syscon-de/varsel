@@ -17,7 +17,7 @@
  */
 
 #include <iostream>
-
+#include <StringUtils.hpp>
 
 #include "GitRepository.hpp"
 #include "GitDataSource.hpp"
@@ -59,6 +59,16 @@ GitDataSource::GitDataSource(const Glib::RefPtr<Gio::File>& dir, ListApp* applic
 {
 }
 
+bool
+GitDataSource::isDisplayable(const Glib::RefPtr<Gio::File>& file)
+{
+    if (!file->query_exists()) {
+        return false;
+    }
+    // QueryInfoFlags->None will pass thru type for symlinks
+    auto fileType = file->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+    return (fileType == Gio::FileType::FILE_TYPE_REGULAR);
+}
 
 void
 GitDataSource::update(
@@ -66,13 +76,11 @@ GitDataSource::update(
         , ListListener* listListener)
 {
     try {
-        auto treeNode = std::make_shared<GitTreeNode>("", 1);
+        auto treeNode = std::make_shared<GitTreeNode>(".", 1);
         treeModel->append(treeNode);
         psc::git::Repository repository(m_dir->get_path());
         auto status = repository.getStatus();
         for (auto iter = status.begin(); iter != status.end(); ++iter) {
-            auto list = treeNode->appendList();
-            auto row = *list;
             std::string name;
             if (!iter->getWorkdir().getNewPath().empty()) {
                 //if (!iter->getWorkdir().getOldPath().empty()) {
@@ -83,14 +91,36 @@ GitDataSource::update(
             else {
                 name = iter->getWorkdir().getOldPath();
             }
-            auto gitListColumns = std::dynamic_pointer_cast<GitListColumns>(getListColumns());
-            row.set_value<psc::git::FileStatus>(gitListColumns->m_workdirState, iter->getWorkdir().getStatus());
-            row.set_value<psc::git::FileStatus>(gitListColumns->m_indexState, iter->getIndex().getStatus());
+            if (!name.empty()) {
+                //std::cout << "GitDataSource::update got " << name << std::endl;
+                auto node = treeNode;
+                std::vector<Glib::ustring> parts;
+                parts.reserve(8);
+                StringUtils::split(name, '/', parts);
+                for (size_t i = 0; i < parts.size() - 1; ++i) {
+                    auto part = parts[i];
+                    auto next = std::dynamic_pointer_cast<GitTreeNode>(node->findNode(part));
+                    if (!next) {
+                        next = std::make_shared<GitTreeNode>(part, node->getDepth() + 1);
+                        node->addChild(next);
+                    }
+                    node = next;
+                }
 
-            auto file = getFileName(name);
-            if (file->query_exists()) {
-                auto info = file->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
-                FileDataSource::setFileValues(row, info, gitListColumns);
+                auto file = getFileName(name);
+                if (isDisplayable(file) ) {
+                    auto list = node->appendList();
+                    auto row = *list;
+                    auto gitListColumns = std::dynamic_pointer_cast<GitListColumns>(getListColumns());
+                    row.set_value<psc::git::FileStatus>(gitListColumns->m_workdirState, iter->getWorkdir().getStatus());
+                    row.set_value<psc::git::FileStatus>(gitListColumns->m_indexState, iter->getIndex().getStatus());
+
+                    auto info = file->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
+                    FileDataSource::setFileValues(row, file, info, gitListColumns);
+                }
+                else {
+                    std::cout << "Skippred " << name << " not a regular file." << std::endl;
+                }
             }
         }
     }
@@ -98,14 +128,6 @@ GitDataSource::update(
         std::cout << "Error " << ex.what() << " querying repos " << m_dir->get_path() << std::endl;
     }
 }
-
-
-
-//Glib::RefPtr<Gtk::ListStore>
-//GitDataSource::createList()
-//{
-//    return Gtk::ListStore::create(*gitListColumns.get());
-//}
 
 const char*
 GitDataSource::getConfigGroup()

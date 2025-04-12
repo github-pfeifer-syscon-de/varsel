@@ -38,7 +38,11 @@ public:
     const char* getConfigGroup() override;
     Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
 
-    static void setFileValues(Gtk::TreeRow& row, const Glib::RefPtr<Gio::FileInfo>& fileInfo, const std::shared_ptr<ListColumns>& listColumns);
+    static void setFileValues(Gtk::TreeRow& row
+        , const Glib::RefPtr<Gio::File>& file
+        , const Glib::RefPtr<Gio::FileInfo>& fileInfo
+        , const std::shared_ptr<ListColumns>& listColumns);
+    static constexpr auto LOOKUP_ICON_SIZE{16};
 protected:
 
 private:

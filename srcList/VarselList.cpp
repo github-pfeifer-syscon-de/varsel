@@ -215,10 +215,10 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
                 auto model = m_listView->get_model();
                 auto iter = model->get_iter(path);
                 auto row = *iter;
-                auto name = row.get_value(m_data->m_treeColumns->m_name);
-                auto fileName = m_data->getFileName(name);
-                if (fileName) {
-                    files.push_back(fileName);
+                auto listCols = m_data->getListColumns();
+                auto file = row.get_value(listCols->m_file);
+                if (file->query_exists()) {
+                    files.push_back(file);
                 }
             }
         }
@@ -228,16 +228,15 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
                 auto model = m_listView->get_model();
                 auto iter = model->get_iter(path);
                 auto row = *iter;
-                auto name = row.get_value(m_data->m_treeColumns->m_name);
-                auto fileName = m_data->getFileName(name);
-                if (fileName) {
-                    files.push_back(fileName);
+                auto listCols = m_data->getListColumns();
+                auto file = row.get_value(listCols->m_file);
+                if (file->query_exists()) {
+                    files.push_back(file);
                 }
             }
             else {
-                // No click into list?
+                // Not clicked into list?
             }
-
         }
         // -> check if context is not empty
         for (auto& action : m_actions) {

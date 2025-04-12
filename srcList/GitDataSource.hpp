@@ -132,6 +132,9 @@ public:
     Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
     std::shared_ptr<ListColumns> getListColumns() override;
 
+protected:
+    bool isDisplayable(const Glib::RefPtr<Gio::File>& file);
+
 private:
     Glib::RefPtr<Gio::File> m_dir;
 

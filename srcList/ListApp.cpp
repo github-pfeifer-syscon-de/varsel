@@ -41,9 +41,10 @@ void
 ListApp::on_activate()
 {
     // will be used when called w/o parameter
-    getOrCreateVarselWindow();
+    auto varselList = getOrCreateVarselWindow();
     Gtk::Application::on_activate();
-
+    auto dir = Gio::File::create_for_path(".");
+    varselList->showFile(dir);
 }
 
 VarselList*
@@ -54,7 +55,7 @@ ListApp::createVarselWindow()
     try {
         builder->add_from_resource(get_resource_base_path() + "/varsel-win.ui");
         builder->get_widget_derived("VarselList", varselWindow, this);
-        add_window(*varselWindow);    
+        add_window(*varselWindow);
         varselWindow->show_all();
     }
     catch (const Glib::Error &ex) {

@@ -21,118 +21,14 @@
 #include <gtkmm.h>
 #include <psc_i18n.hpp>
 #include <KeyfileTableManager.hpp>
-#include <DataModel.hpp>
+#include <TreeNodeModel.hpp>
 
 #include "EventBus.hpp"
+#include "ListColumns.hpp"
 
 class TreeNodeModel;
 class ListApp;
 
-class SizeConverter
-: public psc::ui::CustomConverter<goffset>
-{
-public:
-    SizeConverter(Gtk::TreeModelColumn<goffset>& col)
-    : psc::ui::CustomConverter<goffset>(col)
-    {
-    }
-    virtual ~SizeConverter() = default;
-
-    void convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter) override
-    {
-        goffset value = 0l;
-        iter->get_value(m_col.index(), value);
-        auto textRend = static_cast<Gtk::CellRendererText*>(rend);
-        textRend->property_text() = Glib::format_size(value, Glib::FORMAT_SIZE_IEC_UNITS);    // base x^2
-    }
-private:
-
-};
-
-class PermConverter
-: public psc::ui::CustomConverter<uint32_t>
-{
-public:
-    PermConverter(Gtk::TreeModelColumn<uint32_t>& col)
-    : psc::ui::CustomConverter<uint32_t>(col)
-    {
-    }
-    virtual ~PermConverter() = default;
-
-    void convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter) override
-    {
-        uint32_t fmode{0u};
-        iter->get_value(m_col.index(), fmode);
-        Glib::ustring smode;
-        smode.reserve(16);
-        smode += fmode & S_IRUSR ? 'r' : '-';
-        smode += fmode & S_IWUSR ? 'w' : '-';
-        smode += fmode & S_IXUSR ? 'x' : '-';
-        smode += fmode & S_IRGRP ? 'r' : '-';
-        smode += fmode & S_IWGRP ? 'w' : '-';
-        smode += fmode & S_IXGRP ? 'x' : '-';
-        smode += fmode & S_IROTH ? 'r' : '-';
-        smode += fmode & S_IWOTH ? 'w' : '-';
-        smode += fmode & S_IXOTH ? 'x' : '-';
-        smode += Glib::ustring::sprintf(" %04o", fmode & 0x01ff);
-        auto textRend = static_cast<Gtk::CellRendererText*>(rend);
-        textRend->property_text() = smode;
-    }
-};
-
-class DateConverter
-: public psc::ui::CustomConverter<Glib::DateTime>
-{
-public:
-    DateConverter(Gtk::TreeModelColumn<Glib::DateTime>& col)
-    : psc::ui::CustomConverter<Glib::DateTime>(col)
-    {
-    }
-    virtual ~DateConverter() = default;
-
-    void convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter) override
-    {
-        Glib::DateTime date;
-        iter->get_value(m_col.index(), date);
-        Glib::ustring dateText;
-        if (date) {
-            dateText = date.format("%x %X");
-        }
-        auto textRend = static_cast<Gtk::CellRendererText*>(rend);
-        textRend->property_text() = dateText;
-    }
-};
-
-
-class ListColumns
-: public psc::ui::ColumnRecord
-{
-public:
-    Gtk::TreeModelColumn<Glib::ustring> m_name;
-    Gtk::TreeModelColumn<goffset> m_size;
-    Gtk::TreeModelColumn<Glib::ustring> m_type;
-    Gtk::TreeModelColumn<uint32_t> m_mode;
-    Gtk::TreeModelColumn<Glib::ustring> m_user;
-    Gtk::TreeModelColumn<Glib::ustring> m_group;
-    Gtk::TreeModelColumn<Glib::DateTime> m_modified;
-
-    Gtk::TreeModelColumn<Glib::RefPtr<Gio::FileInfo>> m_fileInfo;
-    ListColumns()
-    {
-        add(_("Name"), m_name);
-        auto sizeConverter = std::make_shared<SizeConverter>(m_size);
-        add<goffset>(_("Size"), sizeConverter, 1.0f);
-        add(_("Type"), m_type, 1.0f);
-        auto permConverter = std::make_shared<PermConverter>(m_mode);
-        add<uint32_t>(_("Mode"), permConverter, 1.0f);
-        add(_("User"), m_user);
-        add(_("Group"), m_group);
-        auto modifiedDate = std::make_shared<DateConverter>(m_modified);
-        add<Glib::DateTime>(_("Modified"), modifiedDate);
-
-        Gtk::TreeModel::ColumnRecord::add(m_fileInfo);
-    }
-};
 
 class BaseTreeNode
 : public psc::ui::TreeNode

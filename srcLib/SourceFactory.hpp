@@ -34,5 +34,9 @@ public:
 
     void createSourceWindow(const std::vector<std::shared_ptr<EventItem>>& matchingFiles);
     void notify(const std::shared_ptr<BusEvent>& busEvent) override;
+protected:
+    // is probably editable
+    bool isEditable(const Glib::RefPtr<Gio::FileInfo>& fileInfo);
+
 private:
 };

@@ -39,10 +39,10 @@ va_list_SOURCES = resources.c \
 	GitDataSource.hpp \
 	VarselList.cpp \
 	VarselList.hpp \
-	DataModel.cpp \
-	DataModel.hpp \
 	GitRepository.cpp \
 	GitRepository.hpp \
+	ListColumns.cpp \
+	ListColumns.hpp \
 	DataSource.cpp \
 	DataSource.hpp
 

@@ -21,9 +21,9 @@
 #include <memory>
 #include <gtkmm.h>
 #include <KeyfileTableManager.hpp>
+#include <TreeNodeModel.hpp>
 
 #include "DataSource.hpp"
-#include "DataModel.hpp"
 #include <VarselConfig.hpp>
 
 

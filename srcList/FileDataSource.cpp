@@ -56,7 +56,8 @@ FileDataSource::update(
                     auto row = *iter;
                     //std::cout << "file name " << name << " size " << fileInfo->get_size() << std::endl;
                     auto listColumns = getListColumns();
-                    setFileValues(row, fileInfo, listColumns);
+                    auto file = m_file->get_child(fileInfo->get_name());
+                    setFileValues(row, file, fileInfo, listColumns);
                 }
             }
             else {
@@ -76,6 +77,7 @@ FileDataSource::update(
 void
 FileDataSource::setFileValues(
       Gtk::TreeRow& row
+    , const Glib::RefPtr<Gio::File>& file
     , const Glib::RefPtr<Gio::FileInfo>& fileInfo
     , const std::shared_ptr<ListColumns>& listColumns)
 {
@@ -89,9 +91,39 @@ FileDataSource::setFileValues(
     row.set_value(listColumns->m_group, group);
     Glib::DateTime modified = fileInfo->get_modification_date_time();
     row.set_value(listColumns->m_modified, modified);
+    Glib::ustring contentType{fileInfo->get_attribute_string("standard::content-type")};
+    row.set_value(listColumns->m_contentType, contentType);
+    auto glibObj = fileInfo->get_attribute_object("standard::symbolic-icon");
+    auto themedIcon = Glib::RefPtr<Gio::ThemedIcon>::cast_dynamic(glibObj);
+    if (themedIcon) {
+        auto theme = Gtk::IconTheme::get_default();
+        for (Glib::ustring iconName : themedIcon->get_names()) {
+            if (theme->has_icon(iconName)) {
+                auto pixBuf = theme->load_icon(iconName, LOOKUP_ICON_SIZE);
+                if (pixBuf) {
+                    //std::cout << "Theme icon for " << iconName
+                    //          << " w " << pixBuf->get_width()
+                    //          << " h " << pixBuf->get_height() << std::endl;
+                    row.set_value(listColumns->m_icon, pixBuf);
+                }
+                //else {
+                //    std::cout << "Theme no icon builtin for " << iconName << std::endl;
+                //}
+                break;
+            }
+            //else {
+            //    std::cout << "Theme no icon for " << iconName << std::endl;
+            //}
+        }
+    }
+    else {
+        std::cout << "No icon for "
+                  << fileInfo->get_display_name()
+                  << " value " << fileInfo->get_attribute_as_string("standard::symbolic-icon") << std::endl;
+    }
 
     row.set_value(listColumns->m_fileInfo, fileInfo);
-
+    row.set_value(listColumns->m_file, file);
 }
 
 const char*
