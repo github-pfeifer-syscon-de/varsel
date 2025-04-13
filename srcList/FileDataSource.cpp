@@ -23,7 +23,7 @@
 
 FileDataSource::FileDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application)
 : DataSource::DataSource(application)
-, m_file{file}
+, m_dir{file}
 {
 }
 
@@ -35,12 +35,12 @@ FileDataSource::update(
     Glib::RefPtr<Gio::FileEnumerator> enumerat;
     try {
 
-        auto fileInfo = m_file->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+        auto fileInfo = m_dir->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
         auto treeItem = std::make_shared<FileTreeNode>(fileInfo->get_display_name(), 0);
         treeModel->append(treeItem);
 
         auto cancellable = Gio::Cancellable::create();
-        enumerat = m_file->enumerate_children(
+        enumerat = m_dir->enumerate_children(
               cancellable
             , "*"
             , Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
@@ -56,7 +56,7 @@ FileDataSource::update(
                     auto row = *iter;
                     //std::cout << "file name " << name << " size " << fileInfo->get_size() << std::endl;
                     auto listColumns = getListColumns();
-                    auto file = m_file->get_child(fileInfo->get_name());
+                    auto file = m_dir->get_child(fileInfo->get_name());
                     setFileValues(row, file, fileInfo, listColumns);
                 }
             }
@@ -94,33 +94,7 @@ FileDataSource::setFileValues(
     Glib::ustring contentType{fileInfo->get_attribute_string("standard::content-type")};
     row.set_value(listColumns->m_contentType, contentType);
     auto glibObj = fileInfo->get_attribute_object("standard::symbolic-icon");
-    auto themedIcon = Glib::RefPtr<Gio::ThemedIcon>::cast_dynamic(glibObj);
-    if (themedIcon) {
-        auto theme = Gtk::IconTheme::get_default();
-        for (Glib::ustring iconName : themedIcon->get_names()) {
-            if (theme->has_icon(iconName)) {
-                auto pixBuf = theme->load_icon(iconName, LOOKUP_ICON_SIZE);
-                if (pixBuf) {
-                    //std::cout << "Theme icon for " << iconName
-                    //          << " w " << pixBuf->get_width()
-                    //          << " h " << pixBuf->get_height() << std::endl;
-                    row.set_value(listColumns->m_icon, pixBuf);
-                }
-                //else {
-                //    std::cout << "Theme no icon builtin for " << iconName << std::endl;
-                //}
-                break;
-            }
-            //else {
-            //    std::cout << "Theme no icon for " << iconName << std::endl;
-            //}
-        }
-    }
-    else {
-        std::cout << "No icon for "
-                  << fileInfo->get_display_name()
-                  << " value " << fileInfo->get_attribute_as_string("standard::symbolic-icon") << std::endl;
-    }
+    row.set_value(listColumns->m_icon, glibObj);
 
     row.set_value(listColumns->m_fileInfo, fileInfo);
     row.set_value(listColumns->m_file, file);
@@ -135,6 +109,52 @@ FileDataSource::getConfigGroup()
 Glib::RefPtr<Gio::File>
 FileDataSource::getFileName(const std::string& name)
 {
-    auto file = m_file->get_child(name);
+    auto file = m_dir->get_child(name);
     return file;
+}
+
+void
+FileDataSource::progress(goffset current_num_bytes, goffset total_num_bytes)
+{
+    std::cout << "FileDataSource::progress "
+              << current_num_bytes <<  "/" << total_num_bytes << std::endl;
+}
+
+void
+FileDataSource::paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win)
+{
+    std::cout << "FileDataSource::paste " << uris.size() << std::endl;
+    for (auto& uri : uris) {
+        auto file = Gio::File::create_for_uri(uri);
+        auto fileType = file->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+        if (file->query_exists()
+         && fileType == Gio::FileType::FILE_TYPE_REGULAR) {
+            auto localFile = m_dir->get_child(file->get_basename());
+            if (localFile->query_exists()) {
+                auto msg = Glib::ustring::sprintf(_("Overwrite %s"), localFile->get_basename());
+                Gtk::MessageDialog msgDlg(*win, msg, false, Gtk::MessageType::MESSAGE_QUESTION, Gtk::ButtonsType::BUTTONS_YES_NO, true);
+                auto ret = msgDlg.run();
+                if (ret == Gtk::RESPONSE_NO) {
+                    continue;
+                }
+            }
+            auto cancel = Gio::Cancellable::create();
+            if (!file->copy(localFile
+                      , sigc::mem_fun(*this,&FileDataSource::progress)
+                      , cancel
+                      , Gio::FILE_COPY_OVERWRITE)) {
+                auto msg = Glib::ustring::sprintf(_("Error writing %s!\nContinue?"), localFile->get_basename());
+                Gtk::MessageDialog msgDlg(*win, msg, false, Gtk::MessageType::MESSAGE_QUESTION, Gtk::ButtonsType::BUTTONS_YES_NO, true);
+                if (!msgDlg.run()) {
+                    break;
+                }
+            }
+        }
+        else {
+            std::cout << "Skipping " << file->get_basename()
+                      << " exists " << std::boolalpha << file->query_exists()
+                      << " type " << fileType
+                      << std::endl;
+        }
+    }
 }

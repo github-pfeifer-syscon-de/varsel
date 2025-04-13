@@ -20,7 +20,7 @@
 
 
 
-#include "DataSource.hpp"
+#include "FileDataSource.hpp"
 #include "GitRepository.hpp"
 
 
@@ -118,7 +118,7 @@ private:
 
 
 class GitDataSource
-: public DataSource
+: public FileDataSource
 {
 public:
     GitDataSource(const Glib::RefPtr<Gio::File>& dir, ListApp* application);
@@ -129,14 +129,12 @@ public:
           const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener) override;
     const char* getConfigGroup() override;
-    Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
     std::shared_ptr<ListColumns> getListColumns() override;
 
 protected:
     bool isDisplayable(const Glib::RefPtr<Gio::File>& file);
 
 private:
-    Glib::RefPtr<Gio::File> m_dir;
 
 };
 

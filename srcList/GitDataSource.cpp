@@ -54,8 +54,7 @@ GitTreeNode::getEntries()
 }
 
 GitDataSource::GitDataSource(const Glib::RefPtr<Gio::File>& dir, ListApp* application)
-: DataSource(application)
-, m_dir{dir}
+: FileDataSource(dir, application)
 {
 }
 
@@ -116,10 +115,10 @@ GitDataSource::update(
                     row.set_value<psc::git::FileStatus>(gitListColumns->m_indexState, iter->getIndex().getStatus());
 
                     auto info = file->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
-                    FileDataSource::setFileValues(row, file, info, gitListColumns);
+                    setFileValues(row, file, info, gitListColumns);
                 }
                 else {
-                    std::cout << "Skippred " << name << " not a regular file." << std::endl;
+                    std::cout << "Skipped " << name << " not a regular file." << std::endl;
                 }
             }
         }
@@ -133,13 +132,6 @@ const char*
 GitDataSource::getConfigGroup()
 {
     return "GitData";
-}
-
-Glib::RefPtr<Gio::File>
-GitDataSource::getFileName(const std::string& name)
-{
-    auto file = m_dir->get_child(name);
-    return file;
 }
 
 std::shared_ptr<ListColumns>

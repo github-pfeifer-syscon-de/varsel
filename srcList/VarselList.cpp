@@ -27,6 +27,7 @@
 #include "FileDataSource.hpp"
 #include "ArchiveDataSource.hpp"
 #include "GitDataSource.hpp"
+#include "config.h"
 
 VarselList::VarselList(
       BaseObjectType* cobject
@@ -52,8 +53,11 @@ VarselList::VarselList(
         sigc::mem_fun(*this, &VarselList::on_view_button_press_event), false);
     m_listView->signal_button_release_event().connect(
         sigc::mem_fun(*this, &VarselList::on_view_button_release_event), false);
+    m_listView->signal_key_release_event().connect(
+        sigc::mem_fun(*this, &VarselList::on_view_key_release_event), false);
     m_listView->add_events(Gdk::EventMask::BUTTON_PRESS_MASK
-                         | Gdk::EventMask::BUTTON_RELEASE_MASK);
+                         | Gdk::EventMask::BUTTON_RELEASE_MASK
+                         | Gdk::EventMask::KEY_RELEASE_MASK);
     set_default_size(640, 480);
 }
 
@@ -201,6 +205,42 @@ VarselList::on_view_button_press_event(GdkEventButton* event)
 }
 
 bool
+VarselList::getSelection(GdkEventButton* event, std::vector<Glib::RefPtr<Gio::File>>& files)
+{
+    auto select = m_listView->get_selection();
+    if (select->count_selected_rows() > 0) {
+        auto paths = select->get_selected_rows();
+        for (auto path : paths) {
+            auto model = m_listView->get_model();
+            auto iter = model->get_iter(path);
+            auto row = *iter;
+            auto listCols = m_data->getListColumns();
+            auto file = row.get_value(listCols->m_file);
+            if (file->query_exists()) {
+                files.push_back(file);
+            }
+        }
+    }
+    else if (event != nullptr) {
+        Gtk::TreeModel::Path path;
+        if (m_listView->get_path_at_pos(event->x, event->y, path)) {
+            auto model = m_listView->get_model();
+            auto iter = model->get_iter(path);
+            auto row = *iter;
+            auto listCols = m_data->getListColumns();
+            auto file = row.get_value(listCols->m_file);
+            if (file->query_exists()) {
+                files.push_back(file);
+            }
+        }
+        else {
+            // Not clicked into list?
+        }
+    }
+    return !files.empty();
+}
+
+bool
 VarselList::on_view_button_release_event(GdkEventButton* event)
 {
     //auto gdkEvent = Glib::wrap(reinterpret_cast<GdkEvent*>(event), true);
@@ -208,55 +248,91 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
         // if avail -> gdkEvent.triggers_context_menu()
         auto gioMenu = Gio::Menu::create();
         std::vector<Glib::RefPtr<Gio::File>> files;
-        auto select = m_listView->get_selection();
-        if (select->count_selected_rows() > 0) {
-            auto paths = select->get_selected_rows();
-            for (auto path : paths) {
-                auto model = m_listView->get_model();
-                auto iter = model->get_iter(path);
-                auto row = *iter;
-                auto listCols = m_data->getListColumns();
-                auto file = row.get_value(listCols->m_file);
-                if (file->query_exists()) {
-                    files.push_back(file);
+        files.reserve(8);
+        if (getSelection(event, files)) {
+            for (auto& action : m_actions) {
+                action->setContext(files);
+                //action->setEventNotifyContext(m_listApp);
+                if (action->isAvail()) {
+                    auto menuItem = Gio::MenuItem::create(action->getLabel(), "win." + action->getName());
+                    gioMenu->append_item(menuItem);
                 }
             }
+            auto menu = Gtk::make_managed<Gtk::Menu>(gioMenu);
+            menu->show_all();
+            menu->attach_to_widget(*this); // this does the trick and calls the destructor
+            menu->popup(event->button, event->time);
         }
-        else {
-            Gtk::TreeModel::Path path;
-            if (m_listView->get_path_at_pos(event->x, event->y, path)) {
-                auto model = m_listView->get_model();
-                auto iter = model->get_iter(path);
-                auto row = *iter;
-                auto listCols = m_data->getListColumns();
-                auto file = row.get_value(listCols->m_file);
-                if (file->query_exists()) {
-                    files.push_back(file);
-                }
-            }
-            else {
-                // Not clicked into list?
-            }
-        }
-        // -> check if context is not empty
-        for (auto& action : m_actions) {
-            action->setContext(files);
-            //action->setEventNotifyContext(m_listApp);
-            if (action->isAvail()) {
-                auto menuItem = Gio::MenuItem::create(action->getLabel(), "win." + action->getName());
-                gioMenu->append_item(menuItem);
-            }
-        }
-        auto menu = Gtk::make_managed<Gtk::Menu>(gioMenu);
-        menu->show_all();
-        menu->attach_to_widget(*this); // this does the trick and calls the destructor
-        menu->popup(event->button, event->time);
         return true;    // we are "done" (prevent secondary click to change selected)
     }
     return false;
 }
 
+bool
+VarselList::on_view_key_release_event(GdkEventKey* key)
+{
+    if (key->type == GDK_KEY_RELEASE
+     && ((key->state & GDK_SHIFT_MASK) == 0)
+     && ((key->state & GDK_CONTROL_MASK) != 0)
+     && ((key->state & GDK_MOD1_MASK) == 0) ) {   // represents alt
+        auto upper = g_unichar_toupper(key->keyval);
+#       ifdef DEBUG
+        std::cout << "Got key" << key->keyval << " up " << upper << std::endl;
+#       endif
+        if (upper == GDK_KEY_C) {
+            std::vector<Glib::RefPtr<Gio::File>> files;
+            files.reserve(8);
+            if (getSelection(nullptr, files)) {
+                Glib::ustring text;
+                for (auto& f : files) {
+                    if (text.length() > 0) {
+                        text += ", ";
+                    }
+                    text += f->get_path();
+                }
+#               ifdef DEBUG
+                std::cout << "text " << text << std::endl;
+#               endif
+                auto refClipboard = Gtk::Clipboard::get();
+                refClipboard->set_text(text);
+            }
+            return true;
+        }
+        if (upper == GDK_KEY_V) {
+            auto refClipboard = Gtk::Clipboard::get();
+            refClipboard->request_uris(
+                    sigc::mem_fun(*this, &VarselList::on_uri_received));
+            return true;
+        }
+    }
+    return false;
+}
 
+void
+VarselList::on_text_received(const Glib::ustring& text)
+{
+    //auto refClipboard = Gtk::Clipboard::get();
+    //auto text = refClipboard->read_text_finish(result);
+#   ifdef DEBUG
+    std::cout << "VarselList::on_text_received " << text << std::endl;
+#   endif
+  //Do something with the pasted data.
+}
+
+void
+VarselList::on_uri_received(const std::vector<Glib::ustring>& uris)
+{
+    // for text this gets a count of 0
+#   ifdef DEBUG
+    std::cout << "VarselList::on_uri_received " << uris.size() << std::endl;
+    for (size_t i = 0; i < uris.size(); ++i) {
+        std::cout << "   " << uris[i] << std::endl;
+    }
+#   endif
+
+    m_data->paste(uris, this);
+
+}
 
 void
 VarselList::on_hide()

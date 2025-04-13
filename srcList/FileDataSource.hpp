@@ -32,20 +32,21 @@ public:
     explicit FileDataSource(const FileDataSource& orig) = delete;
     virtual ~FileDataSource() = default;
 
-    void update(
+    virtual void update(
           const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener) override;
-    const char* getConfigGroup() override;
+    virtual const char* getConfigGroup() override;
     Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
 
-    static void setFileValues(Gtk::TreeRow& row
+    void setFileValues(Gtk::TreeRow& row
         , const Glib::RefPtr<Gio::File>& file
         , const Glib::RefPtr<Gio::FileInfo>& fileInfo
         , const std::shared_ptr<ListColumns>& listColumns);
-    static constexpr auto LOOKUP_ICON_SIZE{16};
+    void paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win) override;
 protected:
+    void progress(goffset current_num_bytes, goffset total_num_bytes);
+    Glib::RefPtr<Gio::File> m_dir;
 
 private:
-    Glib::RefPtr<Gio::File> m_file;
 };
 

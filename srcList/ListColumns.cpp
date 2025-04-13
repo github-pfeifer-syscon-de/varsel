@@ -77,6 +77,56 @@ DateConverter::convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& 
     textRend->property_text() = dateText;
 }
 
+IconConverter::IconConverter(Gtk::TreeModelColumn<Glib::RefPtr<Glib::Object>>& col)
+: psc::ui::CustomConverter<Glib::RefPtr<Glib::Object>>(col)
+{
+}
+
+Gtk::CellRenderer*
+IconConverter::createCellRenderer()
+{
+    return Gtk::manage<Gtk::CellRendererPixbuf>(new Gtk::CellRendererPixbuf());
+}
+
+void
+IconConverter::convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter)
+{
+    Glib::RefPtr<Glib::Object> glibObj;
+    iter->get_value(m_col.index(), glibObj);
+
+    Glib::RefPtr<Gdk::Pixbuf> pixBuf;
+    auto themedIcon = Glib::RefPtr<Gio::ThemedIcon>::cast_dynamic(glibObj);
+    if (themedIcon) {
+        auto theme = Gtk::IconTheme::get_default();
+        for (Glib::ustring iconName : themedIcon->get_names()) {
+            if (theme->has_icon(iconName)) {
+                //maybe adjust this better with render prefered height?
+                pixBuf = theme->load_icon(iconName, LOOKUP_ICON_SIZE);
+                //if (pixBuf) {
+                //    std::cout << "Theme icon for " << iconName
+                //              << " w " << pixBuf->get_width()
+                //              << " h " << pixBuf->get_height() << std::endl;
+                //}
+                //else {
+                //    std::cout << "Theme no icon builtin for " << iconName << std::endl;
+                //}
+                break;
+            }
+            //else {
+            //    std::cout << "Theme no icon for " << iconName << std::endl;
+            //}
+        }
+    }
+    //else {
+    //    std::cout << "No icon for "
+    //              << fileInfo->get_display_name()
+    //              << " value " << fileInfo->get_attribute_as_string("standard::symbolic-icon") << std::endl;
+    //}
+    auto pixbufRend = static_cast<Gtk::CellRendererPixbuf*>(rend);
+    pixbufRend->property_pixbuf() = pixBuf;
+}
+
+
 ListColumns::ListColumns()
 {
     add(_("Name"), m_name);
@@ -90,7 +140,8 @@ ListColumns::ListColumns()
     auto modifiedDate = std::make_shared<DateConverter>(m_modified);
     add<Glib::DateTime>(_("Modified"), modifiedDate);
     add(_("ContentType"), m_contentType);
-    add<Glib::RefPtr<Gdk::Pixbuf>>(_("Icon"), m_icon);
+    auto iconConverter = std::make_shared<IconConverter>(m_icon);
+    add<Glib::RefPtr<Glib::Object>>(_("Icon"), iconConverter);
 
     Gtk::TreeModel::ColumnRecord::add(m_fileInfo);
     Gtk::TreeModel::ColumnRecord::add(m_file);

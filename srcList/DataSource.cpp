@@ -207,7 +207,7 @@ DataSource::createTree()
 }
 
 void
-DataSource::addActions(std::vector<pDataAction>& actions)
+DataSource::addActions(std::vector<ptrDataAction>& actions)
 {
     actions.push_back(std::make_shared<OpenDataAction>(m_application));
 }

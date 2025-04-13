@@ -229,3 +229,9 @@ ArchiveDataSource::getFileName(const std::string& name)
     // expand to temp?
     return Glib::RefPtr<Gio::File>();
 }
+
+void
+ArchiveDataSource::paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win)
+{
+    std::cout << "ArchiveDataSource::paste " << uris.size() << std::endl;
+}

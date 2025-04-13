@@ -19,6 +19,7 @@
 #include <StringUtils.hpp>
 
 #include "LspConf.hpp"
+#include "config.h"
 
 LspConf::LspConf(const std::shared_ptr<VarselConfig>& config, const Glib::ustring& grp)
 : LspConf(config->getString(grp.c_str(), LANGUAGE_EXEC_KEY)
@@ -133,6 +134,13 @@ LspConfs::getLanguage(const Glib::RefPtr<Gio::File>& file)
     Glib::ustring ext = StringUtils::getExtension(file);
     PtrLspConf language;
     for (auto& lang : m_languages) {
+#       ifdef DEBUG
+        std::cout << "Checking lang " << lang->getExecute()
+                  << " ext " << ext
+                  << " isExtension " << std::boolalpha << lang->isExtension(ext)
+                  << " hasPrereq " << std::boolalpha << lang->hasPrerequisite(file)
+                  << " hasExec  " << std::boolalpha <<  lang->hasExecutable() << std::endl;
+#       endif
         if (lang->isExtension(ext)
          && lang->hasPrerequisite(file)
          && lang->hasExecutable()) {

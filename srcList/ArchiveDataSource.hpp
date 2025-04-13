@@ -71,6 +71,7 @@ public:
 
     void archivUpdate(const std::shared_ptr<ArchivEntry>& entry)  override;
     void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) override;
+    void paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win) override;
 
 private:
     Glib::RefPtr<Gio::File> m_file;

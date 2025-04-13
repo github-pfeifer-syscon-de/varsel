@@ -180,7 +180,7 @@ private:
     Glib::RefPtr<Gio::SimpleAction> m_action;
 };
 
-using pDataAction = std::shared_ptr<DataAction>;
+using ptrDataAction = std::shared_ptr<DataAction>;
 class ListApp;
 
 class OpenDataAction
@@ -216,7 +216,8 @@ public:
     virtual const char* getConfigGroup() = 0;
     virtual Glib::RefPtr<Gio::File> getFileName(const std::string& name) = 0;
     virtual std::shared_ptr<ListColumns> getListColumns();
-    void addActions(std::vector<pDataAction>& actions);
+    virtual void paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win) = 0;
+    void addActions(std::vector<ptrDataAction>& actions);
 
     std::shared_ptr<TreeColumns> m_treeColumns;
     ListApp* m_application;

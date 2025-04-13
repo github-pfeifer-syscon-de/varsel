@@ -45,8 +45,6 @@ public:
           const Glib::ustring& name
         , const std::shared_ptr<DataSource>& data
         , ListApp* varselWin);
-    bool on_view_button_press_event(GdkEventButton* event);
-    bool on_view_button_release_event(GdkEventButton* event);
     void nodeAdded(const std::shared_ptr<BaseTreeNode>& baseTreeNode) override;
     void listDone(Severity severity, const Glib::ustring& msg) override;
     void showMessage(const Glib::ustring& msg, Gtk::MessageType msgType = Gtk::MessageType::MESSAGE_INFO);
@@ -57,7 +55,14 @@ public:
     std::shared_ptr<VarselConfig> getKeyFile();
     void save_config();
 protected:
+    bool on_view_button_press_event(GdkEventButton* event);
+    bool on_view_button_release_event(GdkEventButton* event);
+    bool on_view_key_release_event(GdkEventKey* event);
+    void on_text_received(const Glib::ustring& text);
+    void on_uri_received(const std::vector<Glib::ustring>& uris);
     void updateList();
+    bool getSelection(GdkEventButton* event, std::vector<Glib::RefPtr<Gio::File>>& files);
+
     std::shared_ptr<DataSource> setupDataSource(const Glib::RefPtr<Gio::File>& file);
 
 private:
@@ -69,7 +74,7 @@ private:
 
     std::shared_ptr<psc::ui::KeyfileTableManager> m_kfTableManager;
 
-    std::vector<pDataAction> m_actions;
+    std::vector<ptrDataAction> m_actions;
     Glib::RefPtr<psc::ui::TreeNodeModel> m_refTreeModel;
     Gtk::Paned* m_paned;
 };

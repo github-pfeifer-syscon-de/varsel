@@ -67,6 +67,7 @@ static bool
 terminalKeyEvent(GtkWidget* widget, GdkEventKey* key, gpointer user_data)
 {
     auto varselView = static_cast<VarselView*>(user_data);
+    auto upper = g_unichar_toupper(key->keyval);
     if (key->keyval == GDK_KEY_F9
      && key->type == GDK_KEY_RELEASE
      && ((key->state & GDK_SHIFT_MASK) == 0)
@@ -83,7 +84,7 @@ terminalKeyEvent(GtkWidget* widget, GdkEventKey* key, gpointer user_data)
         }
         return true;    // steal
     }
-    else if ((key->keyval == GDK_KEY_T)
+    else if ((upper == GDK_KEY_T)
      && key->type == GDK_KEY_RELEASE
      && ((key->state & GDK_SHIFT_MASK) != 0)
      && ((key->state & GDK_CONTROL_MASK) != 0)

@@ -64,7 +64,8 @@ editorKeyEvent(GtkWidget* widget, GdkEventKey* key, gpointer user_data)
 //      << " shift " << std::boolalpha << (key->state & GDK_SHIFT_MASK)
 //      << " cntl " << std::boolalpha << (key->state & GDK_CONTROL_MASK)
 //      << " alt " << std::boolalpha << (key->state & GDK_MOD1_MASK) << std::endl;
-    if ((key->keyval == GDK_KEY_D || key->keyval == 'd')
+    auto uppper = g_unichar_toupper(key->keyval);
+    if ((uppper == GDK_KEY_D)
      && key->type == GDK_KEY_RELEASE
      && ((key->state & GDK_CONTROL_MASK) != 0)
      && ((key->state & GDK_MOD1_MASK) == 0) ) {   // represents alt

@@ -56,6 +56,18 @@ public:
     void convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter) override;
 };
 
+class IconConverter
+: public psc::ui::CustomConverter<Glib::RefPtr<Glib::Object>>
+{
+public:
+    IconConverter(Gtk::TreeModelColumn<Glib::RefPtr<Glib::Object>>& col);
+    virtual ~IconConverter() = default;
+    static constexpr auto LOOKUP_ICON_SIZE{16};
+    Gtk::CellRenderer* createCellRenderer() override;
+
+    void convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter) override;
+};
+
 
 class ListColumns
 : public psc::ui::ColumnRecord
@@ -69,7 +81,7 @@ public:
     Gtk::TreeModelColumn<Glib::ustring> m_group;
     Gtk::TreeModelColumn<Glib::DateTime> m_modified;
     Gtk::TreeModelColumn<Glib::ustring> m_contentType;
-    Gtk::TreeModelColumn<Glib::RefPtr<Gdk::Pixbuf>> m_icon;
+    Gtk::TreeModelColumn<Glib::RefPtr<Glib::Object>> m_icon;
 
     Gtk::TreeModelColumn<Glib::RefPtr<Gio::FileInfo>> m_fileInfo;
     Gtk::TreeModelColumn<Glib::RefPtr<Gio::File>> m_file;
