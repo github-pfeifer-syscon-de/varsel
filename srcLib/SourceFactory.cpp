@@ -19,8 +19,10 @@
 #include <iostream>
 #include <glibmm.h>
 #include <StringUtils.hpp>
+#include <psc_i18n.hpp>
 
 #include "SourceFactory.hpp"
+#include "config.h"
 
 
 SourceFactory::SourceFactory()
@@ -28,32 +30,53 @@ SourceFactory::SourceFactory()
 {
 }
 
-void
-SourceFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
+Gtk::MenuItem*
+SourceFactory::createItem(
+          PtrEventItem& item
+        , Gtk::Menu* gtkMenu)
 {
-    auto openEvent = std::dynamic_pointer_cast<OpenEvent>(busEvent);
-    if (openEvent) {
-        std::vector<std::shared_ptr<EventItem>> matchingFiles;
-        matchingFiles.reserve(16);
-        for (auto item : openEvent->getFiles()) {
-            //GtkSourceLanguage* srcLang = SourceFile::getSourceLanguage(item);
-            auto filetype = item->getFile()->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
-            auto fileInfo = item->getFileInfo();
-            if (filetype == Gio::FileType::FILE_TYPE_REGULAR
-             && isEditable(fileInfo)) {   // at least rule out binaries?
-                matchingFiles.push_back(item);
-                openEvent->remove(item);
+    auto menuItem = Gtk::make_managed<Gtk::MenuItem>(item->getFile()->get_basename());
+    gtkMenu->append(*menuItem);
+    std::vector<PtrEventItem> items;
+    items.push_back(item);
+    menuItem->signal_activate().connect(
+        sigc::bind(
+            sigc::mem_fun(*this, &SourceFactory::activate)
+        , items));
+    return menuItem;
+}
+
+
+void
+SourceFactory::notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
+{
+    Gtk::MenuItem* allItem{};
+    std::vector<PtrEventItem> editFiles;
+    for (auto& item : files) {
+        //GtkSourceLanguage* srcLang = SourceFile::getSourceLanguage(item);
+        auto filetype = item->getFile()->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+        auto fileInfo = item->getFileInfo();
+        if (filetype == Gio::FileType::FILE_TYPE_REGULAR
+         && isEditable(fileInfo)) {   // at least rule out binaries?
+            if (!allItem) {
+                allItem = Gtk::make_managed<Gtk::MenuItem>(Glib::ustring::sprintf(_("Edit %s"), "all"));
+                gtkMenu->append(*allItem);
             }
-            else {
-                std::cout << "SourceFactory::notify skipped "
-                          << item->getFile()->get_path()
-                          << " type " << filetype
-                          << " content " << fileInfo->get_attribute_string("standard::content-type") << std::endl;
-            }
+            editFiles.push_back(item);
+            createItem(item, gtkMenu);
         }
-        if (matchingFiles.size() > 0) {
-            createSourceWindow(matchingFiles);
+        else {
+            std::cout << "SourceFactory::notify skipped "
+                      << item->getFile()->get_path()
+                      << " type " << filetype
+                      << " content " << fileInfo->get_attribute_string("standard::content-type") << std::endl;
         }
+    }
+    if (allItem) {
+        allItem->signal_activate().connect(
+            sigc::bind(
+                  sigc::mem_fun(*this, &SourceFactory::activate)
+                , editFiles));
     }
 }
 
@@ -72,14 +95,18 @@ SourceFactory::isEditable(const Glib::RefPtr<Gio::FileInfo>& fileInfo)
     return false;
 }
 
-
 void
-SourceFactory::createSourceWindow(const std::vector<std::shared_ptr<EventItem>>& matchingFiles)
+SourceFactory::activate(const std::vector<PtrEventItem>& items)
 {
     Glib::ustring cmd;
     cmd.reserve(64);
-    cmd.append("srcEdit/va_edit");
-    for (auto& eventItem : matchingFiles) {
+    if (DEBUG) {
+        cmd.append("srcEdit/va_edit");
+    }
+    else {
+        cmd.append("va_edit");
+    }
+    for (auto& eventItem : items) {
         cmd.append(" ");
         cmd.append(eventItem->getFile()->get_path());
     }

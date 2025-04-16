@@ -128,72 +128,6 @@ FileTreeModel::getTreeColumns()
 }
 
 
-DataAction::DataAction(const char* label, const char* name)
-: m_label(label)
-, m_name(name)
-{
-}
-
-
-std::string
-DataAction::getLabel()
-{
-    return m_label;
-}
-
-std::string
-DataAction::getName()
-{
-    return m_name;
-}
-
-Glib::RefPtr<Gio::Action>
-DataAction::getAction()
-{
-    if (!m_action) {
-        m_action = Gio::SimpleAction::create(getName());
-        m_action->signal_activate().connect(
-            sigc::mem_fun(*this, &DataAction::execute));
-    }
-    return m_action;
-}
-
-OpenDataAction::OpenDataAction(ListApp* application)
-: DataAction::DataAction(_("Open"), "open")
-, m_openEvent{std::make_shared<OpenEvent>()}
-, m_application{application}
-{
-}
-
-void
-OpenDataAction::setContext(const std::vector<Glib::RefPtr<Gio::File>>& files)
-{
-    m_openEvent->setContext(files);
-}
-
-void
-OpenDataAction::setEventNotifyContext(EventNotifyContext* eventNotifyContext)
-{
-    m_eventNotifyContext = eventNotifyContext;
-}
-
-bool
-OpenDataAction::isAvail()
-{
-    return m_openEvent->isAvail();
-}
-
-void
-OpenDataAction::execute(const Glib::VariantBase& val)
-{
-    //std::cout << "OpenDataAction::execute "
-    //          << "  for " << m_context.size() << std::endl;
-    m_application->getEventBus()->send(m_openEvent);
-    if (m_eventNotifyContext) {
-        m_eventNotifyContext->checkAfterSend(m_openEvent);
-    }
-}
-
 DataSource::DataSource(ListApp* application)
 : m_treeColumns{FileTreeModel::getTreeColumns()}
 , m_application{application}
@@ -207,9 +141,13 @@ DataSource::createTree()
 }
 
 void
-DataSource::addActions(std::vector<ptrDataAction>& actions)
+DataSource::open(std::vector<Glib::RefPtr<Gio::File>>& files)
 {
-    actions.push_back(std::make_shared<OpenDataAction>(m_application));
+    std::cout << "DataSource::open unexpected!!!" << std::endl;
+    //m_application->getEventBus()->send(m_openEvent);
+    //if (m_eventNotifyContext) {
+    //    m_eventNotifyContext->checkAfterSend(m_openEvent);
+    //}
 }
 
 std::shared_ptr<ListColumns>

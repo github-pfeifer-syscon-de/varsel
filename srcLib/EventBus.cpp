@@ -27,8 +27,8 @@ EventItem::EventItem(Glib::RefPtr<Gio::File> file)
 
 }
 
-Glib::RefPtr<Gio::File>
-EventItem::getFile()
+const Glib::RefPtr<Gio::File>
+EventItem::getFile() const
 {
     return m_file;
 }
@@ -126,12 +126,12 @@ EventBus::addListener(const pEventListener& listener)
 }
 
 void
-EventBus::send(const std::shared_ptr<BusEvent>& event)
+EventBus::distribute(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
 {
     for (auto& lsnr : m_eventListner) {
-        lsnr->notify(event);
-        if (event->isCompleted()) {
-            break;     // finish if indicate it was handled
-        }
+        lsnr->notify(files, gtkMenu);
+        //if (files.empty()) {
+        //    break;     // finish if indicate it was handled
+        //}
     }
 }

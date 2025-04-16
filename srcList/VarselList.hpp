@@ -61,9 +61,10 @@ protected:
     void on_text_received(const Glib::ustring& text);
     void on_uri_received(const std::vector<Glib::ustring>& uris);
     void updateList();
-    bool getSelection(GdkEventButton* event, std::vector<Glib::RefPtr<Gio::File>>& files);
+    bool getSelection(GdkEventButton* event, std::vector<PtrEventItem>& items);
 
     std::shared_ptr<DataSource> setupDataSource(const Glib::RefPtr<Gio::File>& file);
+    //void createWindow(const Glib::VariantBase& variant, const Glib::ustring& action);
 
 private:
     Glib::RefPtr<Gtk::TreeView> m_treeView;
@@ -74,7 +75,6 @@ private:
 
     std::shared_ptr<psc::ui::KeyfileTableManager> m_kfTableManager;
 
-    std::vector<ptrDataAction> m_actions;
     Glib::RefPtr<psc::ui::TreeNodeModel> m_refTreeModel;
     Gtk::Paned* m_paned;
 };

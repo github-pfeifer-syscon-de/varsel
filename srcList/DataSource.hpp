@@ -152,56 +152,6 @@ protected:
 };
 
 
-class EventNotifyContext
-{
-public:
-    virtual void checkAfterSend(const std::shared_ptr<BusEvent>& event) = 0;
-};
-
-
-class DataAction
-{
-public:
-    DataAction(const char* label, const char* name);
-    virtual ~DataAction() = default;
-
-    virtual void setContext(const std::vector<Glib::RefPtr<Gio::File>>& files) = 0;
-    virtual void setEventNotifyContext(EventNotifyContext* eventNotifyContext) = 0;
-    virtual bool isAvail() = 0;
-    virtual void execute(const Glib::VariantBase& val) = 0;
-
-    std::string getLabel();
-    std::string getName();
-    Glib::RefPtr<Gio::Action> getAction();
-protected:
-private:
-    std::string m_label;
-    std::string m_name;
-    Glib::RefPtr<Gio::SimpleAction> m_action;
-};
-
-using ptrDataAction = std::shared_ptr<DataAction>;
-class ListApp;
-
-class OpenDataAction
-: public DataAction
-{
-public:
-    OpenDataAction(ListApp* application);
-    virtual ~OpenDataAction() = default;
-
-    bool isAvail() override;
-    void execute(const Glib::VariantBase& val) override;
-    void setContext(const std::vector<Glib::RefPtr<Gio::File>>& files) override;
-    void setEventNotifyContext(EventNotifyContext* eventNotifyContext) override;
-protected:
-    std::shared_ptr<OpenEvent> m_openEvent;
-private:
-    ListApp* m_application;
-    EventNotifyContext* m_eventNotifyContext{nullptr};
-};
-
-
 class DataSource
 {
 public:
@@ -217,7 +167,7 @@ public:
     virtual Glib::RefPtr<Gio::File> getFileName(const std::string& name) = 0;
     virtual std::shared_ptr<ListColumns> getListColumns();
     virtual void paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win) = 0;
-    void addActions(std::vector<ptrDataAction>& actions);
+    void open(std::vector<Glib::RefPtr<Gio::File>>& files);
 
     std::shared_ptr<TreeColumns> m_treeColumns;
     ListApp* m_application;

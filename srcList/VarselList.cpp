@@ -28,6 +28,8 @@
 #include "ArchiveDataSource.hpp"
 #include "GitDataSource.hpp"
 #include "config.h"
+#include <ListFactory.hpp>
+#include <SourceFactory.hpp>
 
 VarselList::VarselList(
       BaseObjectType* cobject
@@ -79,12 +81,6 @@ VarselList::showFile(const Glib::RefPtr<Gio::File>& file)
     //tree->clear();    consider these for update ?
     //list->clear();
     m_data->update(m_refTreeModel, this);
-
-    m_data->addActions(m_actions);
-    for (auto& action : m_actions) {
-        auto gAction = action->getAction();
-        add_action(gAction);
-    }
 
     m_treeView->set_model(m_refTreeModel);
     m_treeView->expand_all();
@@ -166,7 +162,10 @@ VarselList::listDone(Severity severity, const Glib::ustring& msg)
 {
     std::cout << "VarselList::listDone " << msg << std::endl;
     //if (severity > Severity::Info) {
-    showMessage(msg, severity == Severity::Warning ? Gtk::MessageType::MESSAGE_WARNING : Gtk::MessageType::MESSAGE_ERROR);
+    showMessage(msg,
+            severity == Severity::Warning
+            ? Gtk::MessageType::MESSAGE_WARNING
+            : Gtk::MessageType::MESSAGE_ERROR);
     //}
 }
 
@@ -205,7 +204,7 @@ VarselList::on_view_button_press_event(GdkEventButton* event)
 }
 
 bool
-VarselList::getSelection(GdkEventButton* event, std::vector<Glib::RefPtr<Gio::File>>& files)
+VarselList::getSelection(GdkEventButton* event, std::vector<PtrEventItem>& items)
 {
     auto select = m_listView->get_selection();
     if (select->count_selected_rows() > 0) {
@@ -217,7 +216,8 @@ VarselList::getSelection(GdkEventButton* event, std::vector<Glib::RefPtr<Gio::Fi
             auto listCols = m_data->getListColumns();
             auto file = row.get_value(listCols->m_file);
             if (file->query_exists()) {
-                files.push_back(file);
+                auto item = std::make_shared<EventItem>(file);
+                items.emplace_back(std::move(item));
             }
         }
     }
@@ -230,14 +230,15 @@ VarselList::getSelection(GdkEventButton* event, std::vector<Glib::RefPtr<Gio::Fi
             auto listCols = m_data->getListColumns();
             auto file = row.get_value(listCols->m_file);
             if (file->query_exists()) {
-                files.push_back(file);
+                auto item = std::make_shared<EventItem>(file);
+                items.emplace_back(std::move(item));
             }
         }
         else {
             // Not clicked into list?
         }
     }
-    return !files.empty();
+    return !items.empty();
 }
 
 bool
@@ -247,18 +248,12 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
     if (event->button == GDK_BUTTON_SECONDARY) {    // completly capture second secondary button
         // if avail -> gdkEvent.triggers_context_menu()
         auto gioMenu = Gio::Menu::create();
-        std::vector<Glib::RefPtr<Gio::File>> files;
-        files.reserve(8);
-        if (getSelection(event, files)) {
-            for (auto& action : m_actions) {
-                action->setContext(files);
-                //action->setEventNotifyContext(m_listApp);
-                if (action->isAvail()) {
-                    auto menuItem = Gio::MenuItem::create(action->getLabel(), "win." + action->getName());
-                    gioMenu->append_item(menuItem);
-                }
-            }
-            auto menu = Gtk::make_managed<Gtk::Menu>(gioMenu);
+        std::vector<PtrEventItem> items;
+        items.reserve(8);
+        if (getSelection(event, items)) {
+            //auto gioMenu = Gio::Menu::create();
+            auto menu = Gtk::make_managed<Gtk::Menu>();
+            m_listApp->getEventBus()->distribute(items, menu);
             menu->show_all();
             menu->attach_to_widget(*this); // this does the trick and calls the destructor
             menu->popup(event->button, event->time);
@@ -280,15 +275,15 @@ VarselList::on_view_key_release_event(GdkEventKey* key)
         std::cout << "Got key" << key->keyval << " up " << upper << std::endl;
 #       endif
         if (upper == GDK_KEY_C) {
-            std::vector<Glib::RefPtr<Gio::File>> files;
-            files.reserve(8);
-            if (getSelection(nullptr, files)) {
+            std::vector<PtrEventItem> items;
+            items.reserve(8);
+            if (getSelection(nullptr, items)) {
                 Glib::ustring text;
-                for (auto& f : files) {
+                for (auto& item : items) {
                     if (text.length() > 0) {
                         text += ", ";
                     }
-                    text += f->get_path();
+                    text += item->getFile()->get_path();
                 }
 #               ifdef DEBUG
                 std::cout << "text " << text << std::endl;

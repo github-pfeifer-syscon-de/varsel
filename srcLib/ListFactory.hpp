@@ -30,7 +30,14 @@ public:
     explicit ListFactory(const ListFactory& listener) = delete;
     virtual ~ListFactory() = default;
 
-    void notify(const std::shared_ptr<BusEvent>& busEvent) override;
+    void notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu) override;
+    void activate(const std::vector<PtrEventItem>& items) override;
     void createListWindow(const std::shared_ptr<EventItem>& eventItem);
+protected:
+
+
 private:
+
+    Gtk::MenuItem * createItem(PtrEventItem& item, Gtk::Menu* gtkMenu);
+
 };

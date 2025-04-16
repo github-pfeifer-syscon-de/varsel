@@ -18,8 +18,7 @@
 
 #pragma once
 
-#include <glibmm.h>
-#include <giomm.h>
+#include <gtkmm.h>
 #include <memory>
 #include <list>
 
@@ -41,13 +40,15 @@ public:
     explicit EventItem(const EventItem& orig) = delete;
     ~EventItem() = default;
 
-    Glib::RefPtr<Gio::File> getFile();
+    const Glib::RefPtr<Gio::File> getFile() const;
     Glib::RefPtr<Gio::FileInfo> getFileInfo();
 
 private:
     Glib::RefPtr<Gio::File> m_file;
     Glib::RefPtr<Gio::FileInfo> m_fileInfo;
 };
+
+using PtrEventItem = std::shared_ptr<EventItem>;
 
 class OpenEvent
 : public BusEvent
@@ -56,6 +57,9 @@ public:
     OpenEvent();
     explicit OpenEvent(const OpenEvent& orig) = delete;
     virtual ~OpenEvent() = default;
+
+
+
 
     void setContext(const std::vector<Glib::RefPtr<Gio::File>>& files);
     bool isAvail();
@@ -75,7 +79,8 @@ public:
     explicit EventBusListener(const EventBusListener& orig) = delete;
     virtual ~EventBusListener() = default;
 
-    virtual void notify(const std::shared_ptr<BusEvent>& busEvent) = 0;
+    virtual void notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu) = 0;
+    virtual void activate(const std::vector<PtrEventItem>& items) = 0;
 };
 
 using pEventListener = std::shared_ptr<EventBusListener>;
@@ -90,7 +95,7 @@ public:
     virtual ~EventBus() = default;
 
     void addListener(const pEventListener& listener);
-    void send(const std::shared_ptr<BusEvent>& event);
+    void distribute(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu);
 protected:
 private:
     std::list<pEventListener> m_eventListner;

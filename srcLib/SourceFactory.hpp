@@ -32,11 +32,14 @@ public:
     explicit SourceFactory(const SourceFactory& listener) = delete;
     virtual ~SourceFactory() = default;
 
-    void createSourceWindow(const std::vector<std::shared_ptr<EventItem>>& matchingFiles);
-    void notify(const std::shared_ptr<BusEvent>& busEvent) override;
+    void notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu) override;
+    void activate(const std::vector<PtrEventItem>& items);
+
+    static constexpr auto SOURCE_ACTION{"createSourceWindow"};
 protected:
     // is probably editable
     bool isEditable(const Glib::RefPtr<Gio::FileInfo>& fileInfo);
 
 private:
+    Gtk::MenuItem* createItem(PtrEventItem& item, Gtk::Menu* gtkMenu);
 };

@@ -18,10 +18,12 @@
 
 #include <iostream>
 #include <glibmm.h>
+#include <StringUtils.hpp>
 
 
 #include "ListFactory.hpp"
 #include "Archiv.hpp"
+#include "config.h"
 
 
 
@@ -30,40 +32,75 @@ ListFactory::ListFactory()
 {
 }
 
+Gtk::MenuItem *
+ListFactory::createItem(PtrEventItem& item, Gtk::Menu* gtkMenu)
+{
+    auto menuItem = Gtk::make_managed<Gtk::MenuItem>(item->getFile()->get_basename());
+    gtkMenu->append(*menuItem);
+    std::vector<PtrEventItem> items;
+    items.push_back(item);
+    menuItem->signal_activate().connect(
+        sigc::bind(
+            sigc::mem_fun(*this, &ListFactory::activate)
+        , items));
+    return menuItem;
+}
 
 void
-ListFactory::notify(const std::shared_ptr<BusEvent>& busEvent)
+ListFactory::notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
 {
-    auto openEvent = std::dynamic_pointer_cast<OpenEvent>(busEvent);
-    if (openEvent) {
-        for (auto& item : openEvent->getFiles()) {
-            auto file = item->getFile();
-            auto type = file->query_file_type();
-            std::cout << "ListFactory::notify testing " << item->getFile()->get_path() << std::endl;
-            auto basename = file->get_basename();
-            //std::cout << "basename " << basename << std::endl;
-            if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
-                createListWindow(item);     // this may either be directory or a git repos
-                openEvent->remove(item);
-            }
-            if (type == Gio::FileType::FILE_TYPE_REGULAR) {
-                Archiv archiv{file};
-                if (archiv.canRead()) {
-                    createListWindow(item);
-                    openEvent->remove(item);
+    Gtk::MenuItem* allItem{};
+    std::vector<PtrEventItem> archivItems;
+    for (auto& item : files) {
+        auto file = item->getFile();
+        auto type = file->query_file_type();
+#       ifdef DEBUG
+        std::cout << "ListFactory::notify"
+                  << " testing " << file->get_path()
+                  << " type " << type << std::endl;
+#       endif
+        //if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
+        //    createItem(item, gtkMenu);
+        //}
+        if (type == Gio::FileType::FILE_TYPE_REGULAR) {
+            Archiv archiv{file};
+            if (archiv.canRead()) {
+                if (!allItem) {
+                    allItem = Gtk::make_managed<Gtk::MenuItem>(Glib::ustring::sprintf(_("List %s"), "all archives"));
+                    gtkMenu->append(*allItem);
                 }
+                archivItems.push_back(item);
+                createItem(item, gtkMenu);
             }
         }
     }
+    if (allItem) {
+        allItem->signal_activate().connect(
+            sigc::bind(
+                  sigc::mem_fun(*this, &ListFactory::activate)
+                , archivItems));
+    }
 }
 
+void
+ListFactory::activate(const std::vector<PtrEventItem>& items)
+{
+    for (auto& item : items) {
+        createListWindow(item);
+    }
+}
 
 void
-ListFactory::createListWindow(const std::shared_ptr<EventItem>& eventItem)
+ListFactory::createListWindow(const PtrEventItem& eventItem)
 {
     Glib::ustring cmd;
     cmd.reserve(64);
-    cmd.append("srcList/va_list");
+    if (DEBUG) {
+        cmd.append("srcList/va_list");
+    }
+    else {
+        cmd.append("va_list");
+    }
     cmd.append(" ");
     cmd.append(eventItem->getFile()->get_path());
     Glib::spawn_command_line_async(cmd);

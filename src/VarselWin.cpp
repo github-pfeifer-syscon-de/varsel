@@ -409,10 +409,12 @@ VarselWin::showFile(const std::string& uri)
 void
 VarselWin::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files)
 {
+    //m_application->getEventBus()->distribute()
     auto openEvent = std::make_shared<OpenEvent>();
     openEvent->setContext(files);
     if (openEvent->isAvail()) {
-        m_application->getEventBus()->send(openEvent);
+        std::cout << "VarselWin::showFiles unexpected!!!" << std::endl;
+        //m_application->getEventBus()->send(openEvent);
         //checkAfterSend(openEvent);
     }
     else {
