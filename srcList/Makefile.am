@@ -43,6 +43,8 @@ va_list_SOURCES = resources.c \
 	GitRepository.hpp \
 	ListColumns.cpp \
 	ListColumns.hpp \
+	ExtractDialog.cpp \
+	ExtractDialog.hpp \
 	DataSource.cpp \
 	DataSource.hpp
 

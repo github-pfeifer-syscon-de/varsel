@@ -342,7 +342,7 @@ VarselList::show(
     , const std::shared_ptr<DataSource>& data
     , ListApp* listApp)
 {
-    VarselList* varselList = nullptr;
+    VarselList* varselList{};
     auto builder = Gtk::Builder::create();
     try {
         builder->add_from_resource(listApp->get_resource_base_path() + "/varsel-win.ui");
@@ -351,10 +351,11 @@ VarselList::show(
         varselList->show_all();
     }
     catch (const Glib::Error &ex) {
-        //listApp->showMessage(
-        //    psc::fmt::vformat(
-        //          _("Error {} loading {}")
-        //        , psc::fmt::make_format_args(ex, "varselWin")), Gtk::MessageType::MESSAGE_WARNING);
+        //showMessage(
+        std::cout << psc::fmt::vformat(
+                  _("Error {} loading {}")
+                , psc::fmt::make_format_args(ex, "varselWin")) << std::endl;
+        //, Gtk::MessageType::MESSAGE_WARNING);
     }
     return varselList;
 }

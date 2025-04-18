@@ -18,12 +18,13 @@
 
 #pragma once
 
-#include <DataSource.hpp>
 #include <memory>
 #include <set>
 
+#include "DataSource.hpp"
 #include "Archiv.hpp"
 #include "ThreadWorker.hpp"
+#include "ExtractDialog.hpp"
 
 
 class ArchivListWorker
@@ -50,48 +51,6 @@ protected:
 private:
     Glib::RefPtr<Gio::File> m_file;
     ArchivListener* m_archivListener;
-    ArchivSummary m_archivSummary;
-};
-
-class ArchivExtractEntry
-: public ArchivEntry
-{
-public:
-    ArchivExtractEntry(struct archive_entry *entry, const Glib::RefPtr<Gio::File>& dir);
-    virtual ~ArchivExtractEntry() = default;
-
-    int handleContent(struct archive* archiv) override;
-private:
-    Glib::RefPtr<Gio::File> m_dir;
-};
-
-class ArchivExtractWorker
-: public ThreadWorker <std::shared_ptr<ArchivEntry>, ArchivSummary>
-, public ArchivListener
-{
-public:
-    ArchivExtractWorker(
-              const Glib::RefPtr<Gio::File>& archiveFile
-            , const Glib::RefPtr<Gio::File>& extractDir
-            , const std::vector<PtrEventItem>& items);
-    explicit ArchivExtractWorker(const ArchivExtractWorker& orig) = delete;
-    virtual ~ArchivExtractWorker() = default;
-
-    PtrArchivEntry createEntry(struct archive_entry *entry) override;
-    void archivUpdate(const std::shared_ptr<ArchivEntry>& entry) override;
-    void archivDone(ArchivSummary archivSummary, const Glib::ustring& msg) override;
-
-protected:
-
-    ArchivSummary doInBackground() override;
-    void process(const std::vector<std::shared_ptr<ArchivEntry>>& entries) override;
-    void done() override;
-
-
-private:
-    Glib::RefPtr<Gio::File> m_archivFile;
-    Glib::RefPtr<Gio::File> m_extractDir;
-    std::set<Glib::ustring> m_items;
     ArchivSummary m_archivSummary;
 };
 
@@ -126,6 +85,5 @@ private:
     std::shared_ptr<ArchivListWorker> m_archivWorker;
     size_t m_entries{0u};
     ListListener* m_listListener{nullptr};
-    std::shared_ptr<ArchivExtractWorker> m_archivExtractWorker;
 };
 
