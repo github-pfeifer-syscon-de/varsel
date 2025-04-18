@@ -77,7 +77,7 @@ terminalKeyEvent(GtkWidget* widget, GdkEventKey* key, gpointer user_data)
         //std::cout << "Got uri" << std::endl;
         auto uri = getWhere(widget);
         if (varselView && !uri.empty()) {
-            varselView->showFile(uri);
+            varselView->showFile((GdkEvent*)key, uri);
         }
         else {
             std::cout << "terminalKeyEvent missing user_data/no uri " << uri << std::endl;
@@ -134,10 +134,10 @@ terminalSpawnAsyncCallback(
     //std::cout << "started pid " << pid
     //          << " user " << std::hex << user_data << std::dec << std::endl;
 
-//    auto varselWin = reinterpret_cast<VarselWin*>(user_data);
-//    if (varselWin) {
-//        varselWin->apply_dir();
-//    }
+    auto varselView = reinterpret_cast<VarselView*>(user_data);
+    if (varselView) {
+        varselView->apply_arg();
+    }
 
     g_signal_connect(GTK_WIDGET(terminal)
                     , "key_press_event"
@@ -179,8 +179,9 @@ TabLabel::TabLabel(const Glib::ustring& label, VarselView* varselView)
 }
 
 
-VarselView::VarselView(const std::string& path, VarselWin* varselWin)
+VarselView::VarselView(const std::string& path, const std::string& script, VarselWin* varselWin)
 : m_uri{path}
+, m_script{script}
 , m_varselWin{varselWin}
 {
     m_scrollView = Gtk::make_managed<Gtk::ScrolledWindow>();
@@ -237,17 +238,13 @@ VarselView::apply_dir()
     auto path = getPath();
     if (!path.empty()) {
         chdir(path.c_str());
-        // example howto paste command into terminal
-        //std::string cd = std::string("cd ") + file->get_path() + "\n";
-        //vte_terminal_feed_child(m_vte_terminal, cd.c_str(), cd.length());
-
     }
 }
 
 void
-VarselView::showFile(const std::string& uri)
+VarselView::showFile(GdkEvent* event, const std::string& uri)
 {
-    m_varselWin->showFile(uri);
+    m_varselWin->showFile(event, uri);
 }
 
 void
@@ -289,6 +286,17 @@ VarselView::apply_font(const Glib::ustring& font, const Gdk::RGBA& backgrd)
     }
 
     vte_terminal_set_color_background(m_vte_terminal, backgrd.gobj());
+}
+
+void
+VarselView::apply_arg()
+{
+    if (!m_script.empty()) {
+        // example howto paste command into terminal (add arg did not work)
+        std::cout << "VarselView::apply_arg " << m_script << std::endl;
+        auto script = m_script + "\n";
+        vte_terminal_feed_child(m_vte_terminal, script.c_str(), script.length());
+    }
 }
 
 Gtk::ScrolledWindow*
@@ -385,12 +393,12 @@ VarselWin::getKeyFile()
 }
 
 void
-VarselWin::showFile(const std::string& uri)
+VarselWin::showFile(GdkEvent* event, const std::string& uri)
 {
     auto file = Gio::File::create_for_uri(uri);
     std::vector<Glib::RefPtr<Gio::File>> files;
     files.push_back(file);
-    showFiles(files);
+    showFiles(event, files);
 }
 
 //void
@@ -406,28 +414,63 @@ VarselWin::showFile(const std::string& uri)
 //    }
 //}
 
+
 void
-VarselWin::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files)
+VarselWin::openFiles(const std::vector<Glib::RefPtr<Gio::File>>& files)
 {
-    //m_application->getEventBus()->distribute()
-    auto openEvent = std::make_shared<OpenEvent>();
-    openEvent->setContext(files);
-    if (openEvent->isAvail()) {
-        std::cout << "VarselWin::showFiles unexpected!!!" << std::endl;
-        //m_application->getEventBus()->send(openEvent);
-        //checkAfterSend(openEvent);
+    for (auto& file : files) {
+        auto fileType = file->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+        if (fileType == Gio::FileType::FILE_TYPE_REGULAR) {
+            // presume shell script we may watch output
+            auto dir = file->get_parent();
+            openTerm(dir->get_uri(), "./" + file->get_basename());
+        }
+        else if (fileType == Gio::FileType::FILE_TYPE_DIRECTORY) {
+            // presume directory we want to open
+            openTerm(file->get_uri());
+        }
+    }
+}
+
+void
+VarselWin::showFiles(GdkEvent* event, const std::vector<Glib::RefPtr<Gio::File>>& files)
+{
+    Gtk::Menu* menu = Gtk::make_managed<Gtk::Menu>();
+    auto eventItems = std::vector<PtrEventItem>();
+    eventItems.reserve(files.size());
+    for (auto& file : files) {
+        if (file->query_exists()) {
+            eventItems.emplace_back(
+                        std::move(
+                            std::make_shared<EventItem>(file)));
+        }
+        else {
+            showMessage(Glib::ustring::sprintf(_("Could not find file %s not included!"), file->get_path()));
+        }
+    }
+    m_application->getEventBus()->distribute(eventItems, menu);
+    menu->show_all();
+    menu->attach_to_widget(*this); // this does the trick and calls the destructor
+    if (event) {
+        menu->popup_at_pointer(event);
     }
     else {
-        std::cout << "VarselWin::showFiles open action not availabele" << std::endl;
+        menu->popup_at_widget(m_notebook, Gdk::Gravity::GRAVITY_CENTER, Gdk::Gravity::GRAVITY_CENTER, nullptr);
     }
 }
 
 void
 VarselWin::openTerm(const std::string& uri)
 {
+    openTerm(uri, "");
+}
+
+void
+VarselWin::openTerm(const std::string& uri, const std::string& script)
+{
     //std::cout << "openTerm "
     //          << " uri \"" << uri << "\"" << std::endl;
-    auto view = std::make_shared<VarselView>(uri, this);
+    auto view = std::make_shared<VarselView>(uri, script, this);
     view->apply_font(getFont(), getBackground());
     auto widget = view->getScroll();
     m_notebook->append_page(*widget, *view->getLabel());

@@ -60,37 +60,7 @@ public:
     {
         return m_mode;
     }
-    Glib::ustring getModeName()
-    {
-        Glib::ustring stype;
-        if (getMode() > 0) {
-            switch (getMode()) {
-            case AE_IFREG:  // Regular file
-                stype = _("File");
-                break;
-            case AE_IFLNK:  // link
-                stype = _("Link");
-                break;
-            case AE_IFSOCK: // Socket
-                stype = _("Socket");
-                break;
-            case AE_IFCHR:  // Character device
-                stype = _("Character device");
-                break;
-            case AE_IFBLK:  // Block device
-                stype = _("Block device");
-                break;
-            case AE_IFDIR:  // Directory
-                stype = _("Directory");
-                break;
-            case AE_IFIFO:  // Named pipe (fifo)
-                stype = _("Fifo");
-                break;
-            }
-        }
-        return stype;
-    }
-
+    Glib::ustring getModeName();
     void setMode(int mode)
     {
         m_mode = mode;
@@ -135,26 +105,8 @@ public:
     {
         m_size = size;
     }
-    virtual int handleContent(struct archive* archiv)
-    {
-        int ret;
-        if (m_size > 0l) {
-            ret = archive_read_data_skip(archiv);
-        }
-        else {  // fake reading to accumulate size
-            const void *buff;
-            size_t len{0l};
-            off_t offset{0l};
-            do {
-                ret = archive_read_data_block(archiv, &buff, &len, &offset);
-                m_size += len;
-            } while (ret == ARCHIVE_OK);
-            if (ret == ARCHIVE_EOF) {  // end of entry as it seems
-                ret = ARCHIVE_OK;
-            }
-        }
-        return ret;
-    }
+    virtual int handleContent(struct archive* archiv);
+    void setError(struct archive *archiv, const Glib::Error& err, const char* where);
 
 private:
     Glib::ustring m_path;
@@ -169,6 +121,8 @@ private:
     la_int64_t m_size{0};
     la_int64_t m_sum{0};
 };
+
+using PtrArchivEntry = std::shared_ptr<ArchivEntry>;
 
 class ArchivSummary
 {
@@ -190,10 +144,18 @@ private:
     size_t m_entries{0};
 };
 
+class ArchivEntry;
+
 class ArchivListener
 {
 public:
+    ArchivListener() = default;
+    virtual ~ArchivListener() = default;
 
+    virtual PtrArchivEntry createEntry(struct archive_entry *entry)
+    {
+        return std::make_shared<ArchivEntry>(entry);
+    }
     virtual void archivUpdate(const std::shared_ptr<ArchivEntry>& entry) = 0;
     virtual void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) = 0;
 protected:
@@ -240,7 +202,7 @@ public:
 
     bool canRead();
     /**
-     * archive must have been read, to contain infos
+     * archive must have been read, to get infos
      * @return the combination of compressions & format used
      */
     std::vector<std::string> getReadFormats();

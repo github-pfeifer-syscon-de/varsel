@@ -1,4 +1,4 @@
-/* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/* -*- Mode: c++; c-basic-offset: 4; tab-width: 4;  coding: utf-8; -*-  */
 /*
  * Copyright (C) 2025 RPf <gpl3@pfeifer-syscon.de>
  *
@@ -18,24 +18,25 @@
 
 #pragma once
 
-#include <memory>
+#include <vector>
 
 #include "EventBus.hpp"
 
-class ListFactory
+class ExecFactory
 : public EventBusListener
 {
 public:
-    ListFactory();
-    explicit ListFactory(const ListFactory& listener) = delete;
-    virtual ~ListFactory() = default;
+    ExecFactory();
+    explicit ExecFactory(const ExecFactory& listener) = delete;
+    virtual ~ExecFactory() = default;
 
     void notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu) override;
-    void createListWindow(const std::vector<PtrEventItem>& items);
+    void createShellWindow(const std::vector<PtrEventItem>& files);
 protected:
 
 
 private:
+    bool isExecutable(const Glib::RefPtr<Gio::FileInfo>& fileInfo);
 
     Gtk::MenuItem * createItem(const PtrEventItem& item, Gtk::Menu* gtkMenu);
 

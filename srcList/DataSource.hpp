@@ -167,6 +167,7 @@ public:
     virtual Glib::RefPtr<Gio::File> getFileName(const std::string& name) = 0;
     virtual std::shared_ptr<ListColumns> getListColumns();
     virtual void paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win) = 0;
+    virtual void distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win) = 0;
     void open(std::vector<Glib::RefPtr<Gio::File>>& files);
 
     std::shared_ptr<TreeColumns> m_treeColumns;

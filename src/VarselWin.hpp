@@ -33,14 +33,15 @@ class VarselWin;
 class VarselView
 {
 public:
-    VarselView(const std::string& uri, VarselWin* varselWin);
+    VarselView(const std::string& uri, const std::string& script, VarselWin* varselWin);
     explicit VarselView(const VarselView& varselView) = delete;
     virtual ~VarselView() = default;
 
     void apply_dir();
-    void showFile(const std::string& uri);
+    void showFile(GdkEvent* event, const std::string& uri);
     void openTerm(const std::string& uri);
     void apply_font(const Glib::ustring& font, const Gdk::RGBA& backgrd);
+    void apply_arg();
     Gtk::ScrolledWindow* getScroll();
     Gtk::Widget* getLabel();
     std::string getUri();
@@ -50,6 +51,7 @@ protected:
     Glib::ustring getPath();
 private:
     std::string m_uri;
+    std::string m_script;
     Glib::ustring m_name;
     VarselWin* m_varselWin;
     Gtk::ScrolledWindow* m_scrollView;
@@ -82,10 +84,12 @@ public:
     virtual ~VarselWin() = default;
 
     void on_hide() override;
-    void showFile(const std::string& uri);
-    void showFiles(const std::vector<Glib::RefPtr<Gio::File>>& files);
+    void openFiles(const std::vector<Glib::RefPtr<Gio::File>>& files);
+    void showFile(GdkEvent* event, const std::string& uri);
+    void showFiles(GdkEvent* event, const std::vector<Glib::RefPtr<Gio::File>>& files);
 //    void checkAfterSend(const std::shared_ptr<BusEvent>& event) override;
     void openTerm(const std::string& uri);
+    void openTerm(const std::string& uri, const std::string& script);
     VarselApp* getApplication();
     std::string getFont();
     Gdk::RGBA getBackground();

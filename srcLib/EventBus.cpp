@@ -16,15 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <iostream>
 
 #include "EventBus.hpp"
 #include "ListFactory.hpp"
 #include "SourceFactory.hpp"
+#include "ExecFactory.hpp"
 
 EventItem::EventItem(Glib::RefPtr<Gio::File> file)
 : m_file{file}
 {
-
 }
 
 const Glib::RefPtr<Gio::File>
@@ -37,6 +38,10 @@ EventItem::getFile() const
 Glib::RefPtr<Gio::FileInfo>
 EventItem::getFileInfo()
 {
+    if (!m_file->query_exists()) {
+        std::cout << "EventItem::getFileInfo for empty file " << m_file->get_path() << std::endl;
+        return Glib::RefPtr<Gio::FileInfo>{};
+    }
     if (!m_fileInfo) {
         m_fileInfo = m_file->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
     }
@@ -44,79 +49,14 @@ EventItem::getFileInfo()
 }
 
 
-OpenEvent::OpenEvent()
-: BusEvent::BusEvent()
-{
-}
-
-void
-OpenEvent::setContext(const std::vector<Glib::RefPtr<Gio::File>>& files)
-{
-    m_context.reserve(files.size());
-    for (auto& file : files) {
-        auto item = std::make_shared<EventItem>(file);
-        m_context.emplace_back(std::move(item));
-    }
-}
-
-bool OpenEvent::isAvail()
-{
-    return true;    // find a working method
-}
-
-void
-OpenEvent::remove(const std::shared_ptr<EventItem>& item)
-{
-    for (auto iter = m_context.begin(); iter != m_context.end(); ) {
-        auto& iitem = *iter;
-        if (iitem == item) {
-            iter = m_context.erase(iter);
-        }
-        else {
-            ++iter;
-        }
-    }
-}
-
-std::vector<std::shared_ptr<EventItem>>
-OpenEvent::getFiles()
-{
-    return m_context;
-}
-
-size_t
-OpenEvent::getSize()
-{
-    return m_context.size();
-}
-
-bool
-OpenEvent::isCompleted()
-{
-    return m_context.empty();
-}
-
-std::string
-OpenEvent::getCompletionInfo()
-{
-    std::string remain;
-    remain.reserve(64);
-    for (auto& file : m_context) {
-        if (!remain.empty()) {
-            remain += ", ";
-        }
-        remain += file->getFile()->get_path();
-    }
-    m_context.clear();  // ensure no second complain
-    return remain;
-}
-
 EventBus::EventBus()
 {
     auto listListener = std::make_shared<ListFactory>();
     addListener(listListener);
     auto sourceListener = std::make_shared<SourceFactory>();
     addListener(sourceListener);
+    auto execListener = std::make_shared<ExecFactory>();
+    addListener(execListener);
 }
 
 void
@@ -126,7 +66,7 @@ EventBus::addListener(const pEventListener& listener)
 }
 
 void
-EventBus::distribute(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
+EventBus::distribute(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
 {
     for (auto& lsnr : m_eventListner) {
         lsnr->notify(files, gtkMenu);

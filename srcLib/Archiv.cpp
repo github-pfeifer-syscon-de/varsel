@@ -66,6 +66,69 @@ ArchivEntry::ArchivEntry(struct archive_entry *entry)
     }
 }
 
+Glib::ustring
+ArchivEntry::getModeName()
+{
+    Glib::ustring stype;
+    if (getMode() > 0) {
+        switch (getMode()) {
+        case AE_IFREG:  // Regular file
+            stype = _("File");
+            break;
+        case AE_IFLNK:  // link
+            stype = _("Link");
+            break;
+        case AE_IFSOCK: // Socket
+            stype = _("Socket");
+            break;
+        case AE_IFCHR:  // Character device
+            stype = _("Character device");
+            break;
+        case AE_IFBLK:  // Block device
+            stype = _("Block device");
+            break;
+        case AE_IFDIR:  // Directory
+            stype = _("Directory");
+            break;
+        case AE_IFIFO:  // Named pipe (fifo)
+            stype = _("Fifo");
+            break;
+        }
+    }
+    return stype;
+}
+
+int
+ArchivEntry::handleContent(struct archive* archiv)
+{
+    int ret;
+    if (m_size > 0l) {
+        ret = archive_read_data_skip(archiv);
+    }
+    else {  // fake reading to accumulate size
+        const void *buff;
+        size_t len{0l};
+        off_t offset{0l};
+        do {
+            ret = archive_read_data_block(archiv, &buff, &len, &offset);
+            m_size += len;
+        } while (ret == ARCHIVE_OK);
+        if (ret == ARCHIVE_EOF) {  // end of entry as it seems
+            ret = ARCHIVE_OK;
+        }
+    }
+    return ret;
+}
+
+void
+ArchivEntry::setError(struct archive *archiv, const Glib::Error& err, const char* where)
+{
+    std::string errWhat = err.what();
+    //auto path = m_file->get_path(); path already included
+    archive_set_error(archiv, ARCHIVE_FATAL, "%s error %s", errWhat.c_str(), where);
+}
+
+
 ArchivException::ArchivException(const std::string& msg)
 : m_msg{msg}
 {
@@ -157,8 +220,8 @@ Archiv::read(ArchivListener* listener)
     if (ret == ARCHIVE_OK) {
         struct archive_entry *entry;
         while ((ret = archive_read_next_header(archiv, &entry)) == ARCHIVE_OK) {
-            // the entry seems a internal structure as it doesn't change so no need to free as it seems
-            auto archivEntry = std::make_shared<ArchivEntry>(entry);
+            // entry exists as internal structure it doesn't change so no need to free as it seems
+            auto archivEntry = listener->createEntry(entry);
             listener->archivUpdate(archivEntry);
             int ret = archivEntry->handleContent(archiv);
             if (ret != ARCHIVE_OK) {

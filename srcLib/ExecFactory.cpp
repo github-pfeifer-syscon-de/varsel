@@ -18,22 +18,18 @@
 
 #include <iostream>
 #include <glibmm.h>
-#include <StringUtils.hpp>
+#include <psc_i18n.hpp>
 
-
-#include "ListFactory.hpp"
-#include "Archiv.hpp"
+#include "ExecFactory.hpp"
 #include "config.h"
 
-
-
-ListFactory::ListFactory()
+ExecFactory::ExecFactory()
 : EventBusListener::EventBusListener()
 {
 }
 
 Gtk::MenuItem *
-ListFactory::createItem(const PtrEventItem& item, Gtk::Menu* gtkMenu)
+ExecFactory::createItem(const PtrEventItem& item, Gtk::Menu* gtkMenu)
 {
     auto menuItem = Gtk::make_managed<Gtk::MenuItem>(item->getFile()->get_basename());
     gtkMenu->append(*menuItem);
@@ -41,13 +37,13 @@ ListFactory::createItem(const PtrEventItem& item, Gtk::Menu* gtkMenu)
     items.push_back(item);
     menuItem->signal_activate().connect(
         sigc::bind(
-            sigc::mem_fun(*this, &ListFactory::createListWindow)
+            sigc::mem_fun(*this, &ExecFactory::createShellWindow)
         , items));
     return menuItem;
 }
 
 void
-ListFactory::notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
+ExecFactory::notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
 {
     Gtk::MenuItem* allItem{};
     std::vector<PtrEventItem> archivItems;
@@ -55,18 +51,14 @@ ListFactory::notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
         auto file = item->getFile();
         auto type = file->query_file_type();
 #       ifdef DEBUG
-        std::cout << "ListFactory::notify"
+        std::cout << "ExecFactory::notify"
                   << " testing " << file->get_path()
                   << " type " << type << std::endl;
 #       endif
-        //if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
-        //    createItem(item, gtkMenu);
-        //}
         if (type == Gio::FileType::FILE_TYPE_REGULAR) {
-            Archiv archiv{file};
-            if (archiv.canRead()) {
+            if (isExecutable(item->getFileInfo())) {
                 if (!allItem) {
-                    allItem = Gtk::make_managed<Gtk::MenuItem>(Glib::ustring::sprintf(_("List %s"), "all archives"));
+                    allItem = Gtk::make_managed<Gtk::MenuItem>(Glib::ustring::sprintf(_("Exec %s"), "all"));
                     gtkMenu->append(*allItem);
                 }
                 archivItems.push_back(item);
@@ -77,18 +69,30 @@ ListFactory::notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
     if (allItem) {
         allItem->signal_activate().connect(
             sigc::bind(
-                  sigc::mem_fun(*this, &ListFactory::createListWindow)
+                  sigc::mem_fun(*this, &ExecFactory::createShellWindow)
                 , archivItems));
     }
 }
 
-void
-ListFactory::createListWindow(const std::vector<PtrEventItem>& items)
+
+bool
+ExecFactory::isExecutable(const Glib::RefPtr<Gio::FileInfo>& fileInfo)
 {
-    for (auto& item : items) {
+    auto contentType = fileInfo->get_attribute_string("standard::content-type");
+    if ("application/x-shellscript" == contentType) {
+        return true;
+    }
+    return false;
+}
+
+
+void
+ExecFactory::createShellWindow(const std::vector<PtrEventItem>& eventItem)
+{
+    for (auto& item : eventItem) {
         Glib::ustring cmd;
         cmd.reserve(64);
-        cmd.append(DEBUG ? "srcList/va_list" : "va_list");
+        cmd.append(DEBUG ? "src/varsel" : "varsel");
         cmd.append(" ");
         cmd.append(item->getFile()->get_path());
         Glib::spawn_command_line_async(cmd);

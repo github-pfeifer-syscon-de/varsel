@@ -158,3 +158,9 @@ FileDataSource::paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win)
         }
     }
 }
+
+void
+FileDataSource::distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win)
+{
+     m_application->getEventBus()->distribute(items, menu);
+}

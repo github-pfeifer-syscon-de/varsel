@@ -22,16 +22,6 @@
 #include <memory>
 #include <list>
 
-class BusEvent
-{
-public:
-    BusEvent() = default;
-    explicit BusEvent(const BusEvent& orig) = delete;
-    virtual ~BusEvent() = default;
-
-    virtual bool isCompleted() = 0;
-    virtual std::string getCompletionInfo() = 0;
-};
 
 class EventItem
 {
@@ -42,35 +32,12 @@ public:
 
     const Glib::RefPtr<Gio::File> getFile() const;
     Glib::RefPtr<Gio::FileInfo> getFileInfo();
-
 private:
     Glib::RefPtr<Gio::File> m_file;
     Glib::RefPtr<Gio::FileInfo> m_fileInfo;
 };
 
 using PtrEventItem = std::shared_ptr<EventItem>;
-
-class OpenEvent
-: public BusEvent
-{
-public:
-    OpenEvent();
-    explicit OpenEvent(const OpenEvent& orig) = delete;
-    virtual ~OpenEvent() = default;
-
-
-
-
-    void setContext(const std::vector<Glib::RefPtr<Gio::File>>& files);
-    bool isAvail();
-    void remove(const std::shared_ptr<EventItem>& item);
-    std::vector<std::shared_ptr<EventItem>> getFiles();
-    size_t getSize();
-    bool isCompleted() override;
-    std::string getCompletionInfo() override;
-private:
-    std::vector<std::shared_ptr<EventItem>> m_context;
-};
 
 class EventBusListener
 {
@@ -79,8 +46,7 @@ public:
     explicit EventBusListener(const EventBusListener& orig) = delete;
     virtual ~EventBusListener() = default;
 
-    virtual void notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu) = 0;
-    virtual void activate(const std::vector<PtrEventItem>& items) = 0;
+    virtual void notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu) = 0;
 };
 
 using pEventListener = std::shared_ptr<EventBusListener>;
@@ -95,7 +61,7 @@ public:
     virtual ~EventBus() = default;
 
     void addListener(const pEventListener& listener);
-    void distribute(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu);
+    void distribute(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu);
 protected:
 private:
     std::list<pEventListener> m_eventListner;

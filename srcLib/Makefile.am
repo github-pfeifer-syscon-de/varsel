@@ -23,6 +23,8 @@ libcommon_a_SOURCES = \
 	VarselConfig.hpp \
 	ListFactory.cpp \
 	ListFactory.hpp \
+	ExecFactory.cpp \
+	ExecFactory.hpp \
 	SourceFactory.cpp \
 	SourceFactory.hpp
 

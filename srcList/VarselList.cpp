@@ -215,10 +215,9 @@ VarselList::getSelection(GdkEventButton* event, std::vector<PtrEventItem>& items
             auto row = *iter;
             auto listCols = m_data->getListColumns();
             auto file = row.get_value(listCols->m_file);
-            if (file->query_exists()) {
-                auto item = std::make_shared<EventItem>(file);
-                items.emplace_back(std::move(item));
-            }
+            // create in any case as we decide how to distribute by processing in DataModel
+            auto item = std::make_shared<EventItem>(file);
+            items.emplace_back(std::move(item));
         }
     }
     else if (event != nullptr) {
@@ -229,10 +228,9 @@ VarselList::getSelection(GdkEventButton* event, std::vector<PtrEventItem>& items
             auto row = *iter;
             auto listCols = m_data->getListColumns();
             auto file = row.get_value(listCols->m_file);
-            if (file->query_exists()) {
-                auto item = std::make_shared<EventItem>(file);
-                items.emplace_back(std::move(item));
-            }
+            // create in any case as we decide how to distribute by processing in DataModel
+            auto item = std::make_shared<EventItem>(file);
+            items.emplace_back(std::move(item));
         }
         else {
             // Not clicked into list?
@@ -246,14 +244,11 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
 {
     //auto gdkEvent = Glib::wrap(reinterpret_cast<GdkEvent*>(event), true);
     if (event->button == GDK_BUTTON_SECONDARY) {    // completly capture second secondary button
-        // if avail -> gdkEvent.triggers_context_menu()
-        auto gioMenu = Gio::Menu::create();
         std::vector<PtrEventItem> items;
         items.reserve(8);
         if (getSelection(event, items)) {
-            //auto gioMenu = Gio::Menu::create();
             auto menu = Gtk::make_managed<Gtk::Menu>();
-            m_listApp->getEventBus()->distribute(items, menu);
+            m_data->distribute(items, menu, this);
             menu->show_all();
             menu->attach_to_widget(*this); // this does the trick and calls the destructor
             menu->popup(event->button, event->time);

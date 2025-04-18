@@ -18,14 +18,15 @@
 
 #include <iostream>
 #include <psc_i18n.hpp>
+#include <gtkmm.h>
 
 #include "ArchiveDataSource.hpp"
-
-
+#include "config.h"
 
 
 // use additional listener for processing in main thread
-ArchivWorker::ArchivWorker(const Glib::RefPtr<Gio::File>& file
+ArchivListWorker::ArchivListWorker(
+              const Glib::RefPtr<Gio::File>& file
             , ArchivListener* archivListener)
 : ThreadWorker()
 , ArchivListener()
@@ -35,7 +36,7 @@ ArchivWorker::ArchivWorker(const Glib::RefPtr<Gio::File>& file
 }
 
 void
-ArchivWorker::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
+ArchivListWorker::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
 {
     // this is called from thread context ...
     //std::cout << "thread archiv path " << entry->getPath() << std::endl;
@@ -43,13 +44,13 @@ ArchivWorker::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
 }
 
 void
-ArchivWorker::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
+ArchivListWorker::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
 {
     m_archivSummary = archivSummary;
 }
 
 ArchivSummary
-ArchivWorker::doInBackground()
+ArchivListWorker::doInBackground()
 {
     //std::cout << "ArchivWorker::doInBackground " << m_file->get_path() << std::endl;
     Archiv archiv(m_file);
@@ -58,7 +59,7 @@ ArchivWorker::doInBackground()
 }
 
 void
-ArchivWorker::process(const std::vector<std::shared_ptr<ArchivEntry>>& entries)
+ArchivListWorker::process(const std::vector<std::shared_ptr<ArchivEntry>>& entries)
 {
     // here we are back to main thread ...
     for (auto entry : entries) {
@@ -68,7 +69,7 @@ ArchivWorker::process(const std::vector<std::shared_ptr<ArchivEntry>>& entries)
 }
 
 void
-ArchivWorker::done()
+ArchivListWorker::done()
 {
     //std::cout << "ArchivWorker::done " << m_archivSummary.getEntries() << std::endl;
     Glib::ustring msg;
@@ -82,6 +83,204 @@ ArchivWorker::done()
     m_archivListener->archivDone(m_archivSummary, msg);
 }
 
+ArchivExtractEntry::ArchivExtractEntry(struct archive_entry *entry, const Glib::RefPtr<Gio::File>& dir)
+: ArchivEntry::ArchivEntry(entry)
+, m_dir{dir}
+{
+}
+
+
+int
+ArchivExtractEntry::handleContent(struct archive* archiv)
+{
+    if (!m_dir) {           // convention no dir -> no restore
+        if (getSize() == 0) {
+            setSize(9999);  // as we are not interested to sum size just want to skip
+        }
+        return ArchivEntry::handleContent(archiv);
+    }
+    int ret{ARCHIVE_OK};
+    auto file = m_dir->get_child(getPath());    // should we work with temps???
+#   ifdef DEBUG
+    std::cout << "ArchivExtractEntry::handleContent " << getPath()
+              << " mode " << getMode()
+              << " dir " << (m_dir ? m_dir->get_path() : std::string("noDir")) << std::endl;
+#   endif
+    if (getMode() == AE_IFLNK && getLinkType() == LinkType::Symbolic) {
+        auto dir = file->get_parent();
+        try {
+            if (!dir->query_exists()) {
+                // if any part exists as file will throw "Error creating directory ... Not a directory"
+                dir->make_directory_with_parents();
+            }
+            if (!file->query_exists()) {
+                file->make_symbolic_link(getLinkPath());
+            }
+        }
+        catch (const Glib::Error& err) {
+            setError(archiv, err, "Creating symlink");
+            ret = ARCHIVE_FAILED;
+        }
+    }
+    else if (getMode() == AE_IFDIR) {
+        if (!file->query_exists()) {
+            try {
+                file->make_directory_with_parents();
+            }
+            catch (const Glib::Error& err) {
+                setError(archiv, err, "Creating directory");
+                ret = ARCHIVE_FAILED;
+            }
+        }
+    }
+    else if (getMode() == AE_IFREG) {
+        auto dir = file->get_parent();
+        bool remove{false};
+        try {
+            if (!dir->query_exists()) {
+                // if any part exists as file will throw "Error creating directory ... Not a directory"
+                dir->make_directory_with_parents();
+            }
+            Glib::RefPtr<Gio::FileOutputStream> stream;
+            if (file->query_exists()) {
+                stream = file->replace();
+            }
+            else {
+                stream = file->create_file(Gio::FileCreateFlags::FILE_CREATE_NONE);
+            }
+            const void *buff;
+            size_t len{0l};
+            off_t offset{0l};
+            do {
+                ret = archive_read_data_block(archiv, &buff, &len, &offset);
+                if (ret == ARCHIVE_OK) {
+    #               ifdef DEBUG
+                    std::cout << "   got"
+                              << " offs " << offset
+                              << " len " << len << std::endl;
+    #               endif
+                    stream->seek(offset, Glib::SeekType::SEEK_TYPE_SET);
+                    auto wsize = stream->write(buff, len);
+                    if (static_cast<size_t>(wsize) != len) {
+                        //setError(archive, ARCHIVE_FAILED, "Writing content");
+                        ret = ARCHIVE_FAILED;
+                        remove = true;
+                    }
+                }
+            } while (ret == ARCHIVE_OK);
+            if (ret == ARCHIVE_EOF) {  // end of entry as it seems
+                ret = ARCHIVE_OK;
+            }
+            stream->flush();
+            stream->close();
+            // restore user/group/date?
+            auto info = file->query_info("*");
+            info->set_attribute_int32("unix::mode", getMode());
+            // see https://docs.gtk.org/glib/file-utils.html
+            //int gret = g_chmod(file->get_path().c_str(), getMode());
+        }
+        catch (const Glib::Error& err) {
+            setError(archiv, err, "Writing content");
+            ret = ARCHIVE_FAILED;
+            remove = true;
+        }
+#       ifdef DEBUG
+        std::cout << "   ret " << ret
+                  << " remove " << std::boolalpha << remove << std::endl;
+#       endif
+        if (remove) {       // don't keep incomplete result
+            file->remove();
+        }
+    }
+    else {
+        std::cout << "ArchivExtractEntry::handleContent unhandeld mode " << getMode() << std::endl;
+    }
+    return ret;
+}
+
+// use additional listener for processing in main thread
+ArchivExtractWorker::ArchivExtractWorker(
+              const Glib::RefPtr<Gio::File>& archiveFile
+            , const Glib::RefPtr<Gio::File>& extractDir
+            , const std::vector<PtrEventItem>& items)
+: ThreadWorker()
+, ArchivListener()
+, m_archivFile{archiveFile}
+, m_extractDir{extractDir}
+{
+    for (auto& item : items) {
+        Glib::ustring filePath = item->getFile()->get_path();
+        if (filePath.length() > 0 && filePath[0] == '/') {
+            filePath = filePath.substr(1);  // just use without preceeding "/"
+        }
+        m_items.insert(filePath);
+    }
+}
+
+PtrArchivEntry
+ArchivExtractWorker::createEntry(struct archive_entry *entry)
+{
+    Glib::ustring path = archive_entry_pathname_utf8(entry);
+    if (m_items.empty() || m_items.contains(path)) {
+#       ifdef DEBUG
+        std::cout << "ArchivExtractWorker::createEntry extract " << path
+                  << " items " << m_items.size()
+                  << " dir " << (m_extractDir ? m_extractDir->get_path() : std::string("noDir")) << std::endl;
+#       endif
+        return std::make_shared<ArchivExtractEntry>(entry, m_extractDir);
+    }
+    return std::make_shared<ArchivEntry>(entry);
+}
+
+void
+ArchivExtractWorker::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
+{
+    // this is called from thread context ...
+
+    //notify(entry);
+}
+
+void
+ArchivExtractWorker::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
+{
+    m_archivSummary = archivSummary;
+}
+
+ArchivSummary
+ArchivExtractWorker::doInBackground()
+{
+    //std::cout << "ArchivWorker::doInBackground " << m_file->get_path() << std::endl;
+    Archiv archiv(m_archivFile);
+    archiv.read(this);
+    return m_archivSummary;
+}
+
+void
+ArchivExtractWorker::process(const std::vector<std::shared_ptr<ArchivEntry>>& entries)
+{
+    // here we are back to main thread ...
+    //for (auto entry : entries) {
+        //std::cout << "main archiv path " << entry->getPath() << std::endl;
+    //    m_archivListener->archivUpdate(entry);
+    //}
+}
+
+void
+ArchivExtractWorker::done()
+{
+    //std::cout << "ArchivWorker::done " << m_archivSummary.getEntries() << std::endl;
+    Glib::ustring msg;
+    try {
+        getResult();
+    }
+    catch (const std::exception& exc) {
+        std::cout << "archiv error " << exc.what() << std::endl;
+        msg = exc.what();
+    }
+    //m_archivListener->archivDone(m_archivSummary, msg);
+}
+
+
 ArchiveDataSource::ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application)
 : DataSource::DataSource(application)
 , ArchivListener::ArchivListener()
@@ -94,7 +293,9 @@ ArchiveDataSource::can_handle(const Glib::RefPtr<Gio::File>& file)
 {
     Archiv archiv(file);
     bool ret = archiv.canRead();
+#   ifdef DEBUG
     std::cout << "ArchiveDataSource::can_handle " << file->get_path() << std::boolalpha << " ret " << ret << std::endl;
+#   endif
     return ret;
 }
 
@@ -161,6 +362,8 @@ ArchiveDataSource::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
         row.set_value(listColumns->m_mode, entry->getPermission());
         row.set_value(listColumns->m_user, entry->getUser());
         row.set_value(listColumns->m_group, entry->getGroup());
+
+        row.set_value(listColumns->m_file, file);   // pass as "virtual" file
         //row.set_value(listColumns->m_fileInfo, fileInfo);
     }
 
@@ -204,7 +407,7 @@ ArchiveDataSource::update(
     m_treeItem = std::make_shared<FileTreeNode>("", 0);
     treeModel->append(m_treeItem);
 
-    m_archivWorker = std::make_shared<ArchivWorker>(m_file, this);
+    m_archivWorker = std::make_shared<ArchivListWorker>(m_file, this);
     //std::cout << "ArchiveDataSource::update" << m_archivWorker.get() << std::endl;
     m_archivWorker->execute();
 }
@@ -234,4 +437,49 @@ void
 ArchiveDataSource::paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win)
 {
     std::cout << "ArchiveDataSource::paste " << uris.size() << std::endl;
+}
+
+Gtk::MenuItem*
+ArchiveDataSource::createItem(const std::vector<PtrEventItem>& items, Gtk::Menu* gtkMenu, const Glib::ustring& name, Gtk::Window* win)
+{
+    auto menuItem = Gtk::make_managed<Gtk::MenuItem>(name);
+    gtkMenu->append(*menuItem);
+    menuItem->signal_activate().connect(
+        sigc::bind(
+            sigc::mem_fun(*this, &ArchiveDataSource::do_handle)
+        , items, win));
+    return menuItem;
+}
+
+void
+ArchiveDataSource::distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win)
+{
+    std::vector<PtrEventItem> empty;
+    createItem(empty, menu, Glib::ustring::sprintf(_("Extract %s"), "all"), win);
+    createItem(items, menu, Glib::ustring::sprintf(_("Extract %s"), "these"), win);
+    for (auto& item : items) {
+        std::vector<PtrEventItem> eventItems;
+        eventItems.push_back(item);
+        createItem(eventItems, menu, item->getFile()->get_basename(), win);
+    }
+}
+
+void
+ArchiveDataSource::do_handle(const std::vector<PtrEventItem>& items, Gtk::Window* win)
+{
+#   ifdef DEBUG
+    std::cout << "ArchiveDataSource::do_handle" << std::endl;
+#   endif
+    auto fileChooser = Gtk::FileChooserDialog(*win
+                            , _("Extract to")
+                            , Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SELECT_FOLDER
+                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT);
+    fileChooser.add_button(_("_Cancel"), Gtk::RESPONSE_CANCEL);
+    fileChooser.add_button(_("_Extract"), Gtk::RESPONSE_ACCEPT);
+    if (fileChooser.run() == Gtk::RESPONSE_ACCEPT) {
+        auto dir = fileChooser.get_file();
+        m_archivExtractWorker = std::make_shared<ArchivExtractWorker>(m_file, dir, items);
+        //std::cout << "ArchiveDataSource::update" << m_archivWorker.get() << std::endl;
+        m_archivExtractWorker->execute();
+    }
 }

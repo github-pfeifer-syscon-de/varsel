@@ -102,7 +102,10 @@ VarselApp::on_open(const Gio::Application::type_vec_files& files, const Glib::us
         gioFiles.push_back(files[i]);
     }
     auto varselWindow = getOrCreateVarselWindow();
-    varselWindow->showFiles(files);
+    auto mainCtx = Glib::MainContext::get_default();
+    mainCtx->signal_idle().connect_once([=] () {  // delay opening
+        varselWindow->openFiles(files);
+    });
 }
 
 

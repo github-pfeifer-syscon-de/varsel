@@ -31,9 +31,7 @@ SourceFactory::SourceFactory()
 }
 
 Gtk::MenuItem*
-SourceFactory::createItem(
-          PtrEventItem& item
-        , Gtk::Menu* gtkMenu)
+SourceFactory::createItem(const PtrEventItem& item, Gtk::Menu* gtkMenu)
 {
     auto menuItem = Gtk::make_managed<Gtk::MenuItem>(item->getFile()->get_basename());
     gtkMenu->append(*menuItem);
@@ -41,14 +39,14 @@ SourceFactory::createItem(
     items.push_back(item);
     menuItem->signal_activate().connect(
         sigc::bind(
-            sigc::mem_fun(*this, &SourceFactory::activate)
+            sigc::mem_fun(*this, &SourceFactory::createSourceWindow)
         , items));
     return menuItem;
 }
 
 
 void
-SourceFactory::notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
+SourceFactory::notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
 {
     Gtk::MenuItem* allItem{};
     std::vector<PtrEventItem> editFiles;
@@ -75,7 +73,7 @@ SourceFactory::notify(std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
     if (allItem) {
         allItem->signal_activate().connect(
             sigc::bind(
-                  sigc::mem_fun(*this, &SourceFactory::activate)
+                  sigc::mem_fun(*this, &SourceFactory::createSourceWindow)
                 , editFiles));
     }
 }
@@ -96,16 +94,11 @@ SourceFactory::isEditable(const Glib::RefPtr<Gio::FileInfo>& fileInfo)
 }
 
 void
-SourceFactory::activate(const std::vector<PtrEventItem>& items)
+SourceFactory::createSourceWindow(const std::vector<PtrEventItem>& items)
 {
     Glib::ustring cmd;
     cmd.reserve(64);
-    if (DEBUG) {
-        cmd.append("srcEdit/va_edit");
-    }
-    else {
-        cmd.append("va_edit");
-    }
+    cmd.append(DEBUG ? "srcEdit/va_edit" : "va_edit");
     for (auto& eventItem : items) {
         cmd.append(" ");
         cmd.append(eventItem->getFile()->get_path());
