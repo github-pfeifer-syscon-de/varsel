@@ -227,25 +227,70 @@ ExtractDialog::ExtractDialog(
       BaseObjectType* cobject
     , const Glib::RefPtr<Gtk::Builder>& builder
     , const Glib::RefPtr<Gio::File>& file
-    , const Glib::RefPtr<Gio::File>& dir
-    , const std::vector<PtrEventItem>& items)
+    , const std::vector<PtrEventItem>& items
+    , Gtk::Window* win)
 : Gtk::Dialog(cobject)
 , ArchivListener()
+, m_file{file}
+, m_items{items}
+, m_win{win}
 {
+    builder->get_widget("archive", m_archive);
+    builder->get_widget("target", m_target);
     builder->get_widget("progress", m_progress);
     builder->get_widget("info", m_info);
     builder->get_widget("apply", m_apply);
     m_apply->set_sensitive(false);
 
-    m_archivExtractWorker = std::make_shared<ArchivExtractWorker>(file, dir, items, this);
+    m_archive->set_text(file->get_path());
+    m_target->signal_selection_changed().connect(
+            sigc::mem_fun(*this, &ExtractDialog::selected));
+    m_apply->signal_clicked().connect(
+            sigc::mem_fun(*this, &ExtractDialog::extract));
+}
+
+void
+ExtractDialog::selected()
+{
+    m_apply->set_sensitive(true);
+}
+
+static
+void choose()
+{
+    Gtk::Window* m_win{};
+    auto fileChooser = Gtk::FileChooserDialog(*m_win
+                            , _("Extract to")
+                            , Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SELECT_FOLDER
+                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT);
+    fileChooser.add_button(_("_Cancel"), Gtk::RESPONSE_CANCEL);
+    fileChooser.add_button(_("_Extract"), Gtk::RESPONSE_ACCEPT);
+    if (fileChooser.run() == Gtk::RESPONSE_ACCEPT) {
+        auto dir = fileChooser.get_file();
+    }
+ }
+
+void
+ExtractDialog::extract()
+{
+    auto dir = m_target->get_file();
+    m_apply->set_sensitive(false);
+    m_target->set_sensitive(false);
+    m_archivExtractWorker = std::make_shared<ArchivExtractWorker>(m_file, dir, m_items, this);
     //std::cout << "ArchiveDataSource::update" << m_archivWorker.get() << std::endl;
     m_archivExtractWorker->execute();
 }
 
 void
-ExtractDialog::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
+ExtractDialog::archivUpdate(const PtrArchivEntry& entry)
 {
-    m_progress->set_text(entry->getPath());
+    auto extract = std::dynamic_pointer_cast<ArchivExtractEntry>(entry);
+    if (extract) {      // since we get updates on every entry, filter relevant
+        ++m_extracted;
+        double fract = static_cast<double>(m_extracted) / static_cast<double>(m_items.size());
+        m_progress->set_fraction(fract);
+        m_progress->set_text(entry->getPath());
+    }
 }
 
 void
@@ -263,7 +308,6 @@ ExtractDialog::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
 ExtractDialog*
 ExtractDialog::show(
                   const Glib::RefPtr<Gio::File>& file
-                , const Glib::RefPtr<Gio::File>& dir
                 , const std::vector<PtrEventItem>& items
                 , Gtk::Window* win)
 {
@@ -271,10 +315,10 @@ ExtractDialog::show(
     auto builder = Gtk::Builder::create();
     try {
         builder->add_from_resource(win->get_application()->get_resource_base_path() + "/dlgExtract.ui");
-        builder->get_widget_derived("dlgProgress", extractDialog, file, dir, items);
-        extractDialog->set_modal(true);
+        builder->get_widget_derived("dlgProgress", extractDialog, file, items, win);
+        extractDialog->set_modal(false);
         extractDialog->run();
-
+        delete extractDialog;
         // here we run into some problem how to delete ?
     }
     catch (const Glib::Error &ex) {

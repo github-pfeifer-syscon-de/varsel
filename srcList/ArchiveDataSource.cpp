@@ -271,14 +271,5 @@ ArchiveDataSource::distribute(const std::vector<PtrEventItem>& items, Gtk::Menu*
 void
 ArchiveDataSource::do_handle(const std::vector<PtrEventItem>& items, Gtk::Window* win)
 {
-    auto fileChooser = Gtk::FileChooserDialog(*win
-                            , _("Extract to")
-                            , Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SELECT_FOLDER
-                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT);
-    fileChooser.add_button(_("_Cancel"), Gtk::RESPONSE_CANCEL);
-    fileChooser.add_button(_("_Extract"), Gtk::RESPONSE_ACCEPT);
-    if (fileChooser.run() == Gtk::RESPONSE_ACCEPT) {
-        auto dir = fileChooser.get_file();
-        ExtractDialog::show(m_file, dir, items, win);
-    }
+    ExtractDialog::show(m_file, items, win);
 }
