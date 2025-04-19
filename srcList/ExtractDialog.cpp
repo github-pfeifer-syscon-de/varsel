@@ -22,6 +22,8 @@
 
 #include "config.h"
 #include "ExtractDialog.hpp"
+#include "ListApp.hpp"
+#include "VarselList.hpp"
 
 ArchivExtractEntry::ArchivExtractEntry(struct archive_entry *entry, const Glib::RefPtr<Gio::File>& dir)
 : ArchivEntry::ArchivEntry(entry)
@@ -41,24 +43,27 @@ ArchivExtractEntry::handleContent(struct archive* archiv)
     }
     int ret{ARCHIVE_OK};
     auto file = m_dir->get_child(getPath());    // should we work with temps???
-#   ifdef DEBUG
-    std::cout << "ArchivExtractEntry::handleContent " << getPath()
-              << " mode " << getMode()
-              << " dir " << (m_dir ? m_dir->get_path() : std::string("noDir")) << std::endl;
-#   endif
-    if (getMode() == AE_IFLNK && getLinkType() == LinkType::Symbolic) {
+    //std::cout << "ArchivExtractEntry::handleContent " << getPath()
+    //          << " mode " << getMode()
+    //          << " dir " << (m_dir ? m_dir->get_path() : std::string("noDir")) << std::endl;
+    if (getMode() == AE_IFLNK) {
         auto dir = file->get_parent();
         try {
-            if (!dir->query_exists()) {
-                // if any part exists as file will throw "Error creating directory ... Not a directory"
-                dir->make_directory_with_parents();
+            if (getLinkType() == LinkType::Symbolic) {
+                if (!dir->query_exists()) {
+                    // if any part exists as file will throw "Error creating directory ... Not a directory"
+                    dir->make_directory_with_parents();
+                }
+                if (!file->query_exists()) {
+                    file->make_symbolic_link(getLinkPath());
+                }
             }
-            if (!file->query_exists()) {
-                file->make_symbolic_link(getLinkPath());
+            else {
+                std::cout << "Unable to handle hard links!" << std::endl;
             }
         }
         catch (const Glib::Error& err) {
-            setError(archiv, err, "Creating symlink");
+            setError(archiv, err, _("Creating symlink"));
             ret = ARCHIVE_FAILED;
         }
     }
@@ -68,7 +73,7 @@ ArchivExtractEntry::handleContent(struct archive* archiv)
                 file->make_directory_with_parents();
             }
             catch (const Glib::Error& err) {
-                setError(archiv, err, "Creating directory");
+                setError(archiv, err, _("Creating directory"));
                 ret = ARCHIVE_FAILED;
             }
         }
@@ -94,11 +99,6 @@ ArchivExtractEntry::handleContent(struct archive* archiv)
             do {
                 ret = archive_read_data_block(archiv, &buff, &len, &offset);
                 if (ret == ARCHIVE_OK) {
-#                   ifdef DEBUG
-                    std::cout << "   got"
-                              << " offs " << offset
-                              << " len " << len << std::endl;
-#                   endif
                     stream->seek(offset, Glib::SeekType::SEEK_TYPE_SET);
                     auto wsize = stream->write(buff, len);
                     if (static_cast<size_t>(wsize) != len) {
@@ -113,21 +113,21 @@ ArchivExtractEntry::handleContent(struct archive* archiv)
             stream->flush();
             stream->close();
             // restore user/group/date?
+#           ifndef __WIN32__
             if (getPermission() > 0) {
                 file->set_attribute_uint32("unix::mode"
                                          , getPermission()
                                          , Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
             }
+#           endif
         }
         catch (const Glib::Error& err) {
-            setError(archiv, err, "Writing content");
+            setError(archiv, err, _("Writing content"));
             ret = ARCHIVE_FAILED;
             remove = true;
         }
-#       ifdef DEBUG
-        std::cout << "   ret " << ret
-                  << " remove " << std::boolalpha << remove << std::endl;
-#       endif
+        //std::cout << "   ret " << ret
+        //          << " remove " << std::boolalpha << remove << std::endl;
         if (remove) {       // don't keep incomplete result
             file->remove();
         }
@@ -165,11 +165,9 @@ ArchivExtractWorker::createEntry(struct archive_entry *entry)
 {
     Glib::ustring path = archive_entry_pathname_utf8(entry);
     if (m_items.empty() || m_items.contains(path)) {
-#       ifdef DEBUG
-        std::cout << "ArchivExtractWorker::createEntry extract " << path
-                  << " items " << m_items.size()
-                  << " dir " << (m_extractDir ? m_extractDir->get_path() : std::string("noDir")) << std::endl;
-#       endif
+        //std::cout << "ArchivExtractWorker::createEntry extract " << path
+        //          << " items " << m_items.size()
+        //          << " dir " << (m_extractDir ? m_extractDir->get_path() : std::string("noDir")) << std::endl;
         return std::make_shared<ArchivExtractEntry>(entry, m_extractDir);
     }
     return std::make_shared<ArchivEntry>(entry);
@@ -178,7 +176,7 @@ ArchivExtractWorker::createEntry(struct archive_entry *entry)
 void
 ArchivExtractWorker::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
 {
-    // this is called from thread context ...
+    // this is called from thread context, and push to main thread
     notify(entry);
 }
 
@@ -239,8 +237,11 @@ ExtractDialog::ExtractDialog(
     builder->get_widget("target", m_target);
     builder->get_widget("progress", m_progress);
     builder->get_widget("info", m_info);
+    builder->get_widget("cancel", m_cancel);
+    builder->get_widget("open", m_open);
     builder->get_widget("apply", m_apply);
     m_apply->set_sensitive(false);
+    m_open->set_sensitive(false);
 
     m_archive->set_text(file->get_path());
     m_target->signal_selection_changed().connect(
@@ -255,28 +256,26 @@ ExtractDialog::selected()
     m_apply->set_sensitive(true);
 }
 
-static
-void choose()
-{
-    Gtk::Window* m_win{};
-    auto fileChooser = Gtk::FileChooserDialog(*m_win
-                            , _("Extract to")
-                            , Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SELECT_FOLDER
-                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT);
-    fileChooser.add_button(_("_Cancel"), Gtk::RESPONSE_CANCEL);
-    fileChooser.add_button(_("_Extract"), Gtk::RESPONSE_ACCEPT);
-    if (fileChooser.run() == Gtk::RESPONSE_ACCEPT) {
-        auto dir = fileChooser.get_file();
-    }
- }
+
+//    Gtk::Window* m_win{};
+//    auto fileChooser = Gtk::FileChooserDialog(*m_win
+//                            , _("Extract to")
+//                            , Gtk::FileChooserAction::FILE_CHOOSER_ACTION_SELECT_FOLDER
+//                            , Gtk::DIALOG_MODAL | Gtk::DIALOG_DESTROY_WITH_PARENT);
+//    fileChooser.add_button(_("_Cancel"), Gtk::RESPONSE_CANCEL);
+//    fileChooser.add_button(_("_Extract"), Gtk::RESPONSE_ACCEPT);
+//    if (fileChooser.run() == Gtk::RESPONSE_ACCEPT) {
+//        auto dir = fileChooser.get_file();
+//    }
 
 void
 ExtractDialog::extract()
 {
-    auto dir = m_target->get_file();
+    m_dir = m_target->get_file();
     m_apply->set_sensitive(false);
     m_target->set_sensitive(false);
-    m_archivExtractWorker = std::make_shared<ArchivExtractWorker>(m_file, dir, m_items, this);
+    m_cancel->set_sensitive(false);     // while working don't allow close
+    m_archivExtractWorker = std::make_shared<ArchivExtractWorker>(m_file, m_dir, m_items, this);
     //std::cout << "ArchiveDataSource::update" << m_archivWorker.get() << std::endl;
     m_archivExtractWorker->execute();
 }
@@ -302,10 +301,18 @@ ExtractDialog::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
     else {
         m_info->set_text(Glib::ustring::sprintf(_("Completed %d entries"), archivSummary.getEntries()));
     }
-    m_apply->set_sensitive(true);   // now we are ready to close
+    m_cancel->set_sensitive(true);   // now we are ready to close
+    auto varselList = dynamic_cast<VarselList*>(m_win);
+    m_open->set_sensitive(varselList != nullptr);       // open only works if invoked from list
 }
 
-ExtractDialog*
+Glib::RefPtr<Gio::File>
+ExtractDialog::getDirectory()
+{
+    return m_dir;
+}
+
+Glib::RefPtr<Gio::File>
 ExtractDialog::show(
                   const Glib::RefPtr<Gio::File>& file
                 , const std::vector<PtrEventItem>& items
@@ -313,11 +320,14 @@ ExtractDialog::show(
 {
     ExtractDialog* extractDialog = nullptr;
     auto builder = Gtk::Builder::create();
+    Glib::RefPtr<Gio::File> ret;
     try {
         builder->add_from_resource(win->get_application()->get_resource_base_path() + "/dlgExtract.ui");
         builder->get_widget_derived("dlgProgress", extractDialog, file, items, win);
-        extractDialog->set_modal(false);
-        extractDialog->run();
+        extractDialog->set_transient_for(*win);
+        if (extractDialog->run() == Gtk::ResponseType::RESPONSE_OK) {
+            ret = extractDialog->getDirectory();
+        }
         delete extractDialog;
         // here we run into some problem how to delete ?
     }
@@ -329,5 +339,5 @@ ExtractDialog::show(
                 , psc::fmt::make_format_args(msg, "dlgExtract")) << std::endl;
         // , Gtk::MessageType::MESSAGE_WARNING)
     }
-    return extractDialog;
+    return ret;
 }

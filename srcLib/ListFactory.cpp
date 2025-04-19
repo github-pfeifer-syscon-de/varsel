@@ -59,10 +59,10 @@ ListFactory::notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
                   << " testing " << file->get_path()
                   << " type " << type << std::endl;
 #       endif
-        //if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
-        //    createItem(item, gtkMenu);
-        //}
-        if (type == Gio::FileType::FILE_TYPE_REGULAR) {
+        if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
+            createItem(item, gtkMenu);
+        }
+        else if (type == Gio::FileType::FILE_TYPE_REGULAR) {
             Archiv archiv{file};
             if (archiv.canRead()) {
                 if (!allItem) {

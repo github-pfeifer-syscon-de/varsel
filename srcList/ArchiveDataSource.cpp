@@ -24,7 +24,7 @@
 
 #include "ArchiveDataSource.hpp"
 #include "config.h"
-
+#include "VarselList.hpp"
 
 // use additional listener for processing in main thread
 ArchivListWorker::ArchivListWorker(
@@ -271,5 +271,9 @@ ArchiveDataSource::distribute(const std::vector<PtrEventItem>& items, Gtk::Menu*
 void
 ArchiveDataSource::do_handle(const std::vector<PtrEventItem>& items, Gtk::Window* win)
 {
-    ExtractDialog::show(m_file, items, win);
+    auto dir = ExtractDialog::show(m_file, items, win);
+    auto varselList = dynamic_cast<VarselList*>(win);
+    if (dir && varselList) {
+        varselList->showFile(dir);
+    }
 }

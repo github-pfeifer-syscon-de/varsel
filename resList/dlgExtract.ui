@@ -5,17 +5,18 @@
   <object class="GtkDialog" id="dlgProgress">
     <property name="can-focus">False</property>
     <property name="type-hint">dialog</property>
+    <property name="deletable">False</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
-        <property name="spacing">2</property>
+        <property name="spacing">6</property>
         <child internal-child="action_area">
           <object class="GtkButtonBox">
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="button1">
+              <object class="GtkButton" id="cancel">
                 <property name="label">gtk-cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -29,8 +30,8 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="apply">
-                <property name="label">gtk-apply</property>
+              <object class="GtkButton" id="open">
+                <property name="label">gtk-open</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -42,10 +43,25 @@
                 <property name="position">1</property>
               </packing>
             </child>
+            <child>
+              <object class="GtkButton" id="apply">
+                <property name="label">gtk-apply</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="use-stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">False</property>
+            <property name="padding">4</property>
             <property name="position">0</property>
           </packing>
         </child>
@@ -68,7 +84,6 @@
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="xpad">16</property>
-            <property name="ypad">4</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -94,8 +109,6 @@
           <object class="GtkFileChooserButton" id="target">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="margin-top">4</property>
-            <property name="margin-bottom">4</property>
             <property name="action">select-folder</property>
             <property name="title" translatable="yes"/>
           </object>
@@ -111,8 +124,6 @@
             <property name="can-focus">False</property>
             <property name="margin-start">8</property>
             <property name="margin-end">8</property>
-            <property name="margin-top">4</property>
-            <property name="margin-bottom">4</property>
             <property name="text" translatable="yes">Progress</property>
             <property name="show-text">True</property>
           </object>
@@ -141,7 +152,7 @@
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="xpad">16</property>
-            <property name="ypad">4</property>
+            <property name="ypad">0</property>
             <property name="wrap">True</property>
           </object>
           <packing>
@@ -153,7 +164,8 @@
       </object>
     </child>
     <action-widgets>
-      <action-widget response="-6">button1</action-widget>
+      <action-widget response="-6">cancel</action-widget>
+      <action-widget response="-5">open</action-widget>
     </action-widgets>
   </object>
 </interface>

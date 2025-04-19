@@ -87,8 +87,8 @@ public:
     virtual ~ExtractDialog() = default;
     void archivUpdate(const PtrArchivEntry& entry) override;
     void archivDone(ArchivSummary archivSummary, const Glib::ustring& msg) override;
-
-    static ExtractDialog* show(
+    Glib::RefPtr<Gio::File> getDirectory();
+    static Glib::RefPtr<Gio::File> show(
                  const Glib::RefPtr<Gio::File>& file
                 , const std::vector<PtrEventItem>& items
                 , Gtk::Window* win);
@@ -99,6 +99,7 @@ protected:
 
 private:
     Glib::RefPtr<Gio::File> m_file;
+    Glib::RefPtr<Gio::File> m_dir;
     std::vector<PtrEventItem> m_items;
     Gtk::Window* m_win;
     std::shared_ptr<ArchivExtractWorker> m_archivExtractWorker;
@@ -107,6 +108,8 @@ private:
     Gtk::FileChooserButton* m_target;
     Gtk::ProgressBar* m_progress;
     Gtk::Label* m_info;
+    Gtk::Button* m_cancel;
+    Gtk::Button* m_open;
     Gtk::Button* m_apply;
     uint32_t m_extracted{};
 };

@@ -69,7 +69,9 @@ VarselList::showFile(const Glib::RefPtr<Gio::File>& file)
     auto info = file->query_info("*");
     set_title(info->get_display_name());
     m_data = setupDataSource(file);
-    m_treeView->append_column(_("Name"), m_data->m_treeColumns->m_name);
+    if (m_treeView->get_columns().size() == 0) {
+        m_treeView->append_column(_("Name"), m_data->m_treeColumns->m_name);
+    }
     m_refTreeModel = m_data->createTree();
     // create individual config instances so wo keep the interference to a minimum (but some might be inevitable, if multiple instances exist, the last saved wins)
     std::string confName = std::string("va_") + m_data->getConfigGroup() + std::string(".conf");
@@ -78,10 +80,7 @@ VarselList::showFile(const Glib::RefPtr<Gio::File>& file)
     int pos = m_config->getInteger(m_data->getConfigGroup(), PANED_POS, 200);
     m_paned->set_position(pos);
 
-    //tree->clear();    consider these for update ?
-    //list->clear();
     m_data->update(m_refTreeModel, this);
-
     m_treeView->set_model(m_refTreeModel);
     m_treeView->expand_all();
     m_treeView->get_selection()->signal_changed().connect(
