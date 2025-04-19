@@ -35,13 +35,15 @@ public:
     virtual ~ArchivExtractEntry() = default;
 
     int handleContent(struct archive* archiv) override;
+    bool isUsed();
 private:
     Glib::RefPtr<Gio::File> m_dir;
 };
 
+using PtrArchivExtractEntry = std::shared_ptr<ArchivExtractEntry>;
 
 class ArchivExtractWorker
-: public ThreadWorker <std::shared_ptr<ArchivEntry>, ArchivSummary>
+: public ThreadWorker <PtrArchivExtractEntry, ArchivSummary>
 , public ArchivListener
 {
 public:
@@ -60,7 +62,7 @@ public:
 protected:
 
     ArchivSummary doInBackground() override;
-    void process(const std::vector<std::shared_ptr<ArchivEntry>>& entries) override;
+    void process(const std::vector<PtrArchivExtractEntry>& entries) override;
     void done() override;
 
 

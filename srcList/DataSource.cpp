@@ -24,6 +24,7 @@
 #include "ListApp.hpp"
 
 std::shared_ptr<ListColumns> FileTreeNode::m_listColumns;
+std::shared_ptr<TreeColumns> FileTreeModel::m_treeColumns;
 
 BaseTreeNode::BaseTreeNode(const Glib::ustring& dir, unsigned long depth)
 : psc::ui::TreeNode::TreeNode(depth)
@@ -71,8 +72,12 @@ BaseTreeNode::setValue(int column, const Glib::ValueBase& value)
     }
 }
 
-FileTreeNode::FileTreeNode(const Glib::ustring& dir, unsigned long depth)
-: BaseTreeNode::BaseTreeNode(dir, depth)
+FileTreeNode::FileTreeNode(
+          const Glib::RefPtr<Gio::File>& dir
+        , const Glib::ustring& name
+        , unsigned long depth)
+: BaseTreeNode::BaseTreeNode(name, depth)
+, m_dir{dir}
 , m_entries{Gtk::ListStore::create(*getListColumns())}
 {
 
@@ -100,14 +105,30 @@ FileTreeNode::getEntries()
     return m_entries;
 }
 
+bool
+FileTreeNode::isQueried()
+{
+    return m_queried;
+}
+
+void
+FileTreeNode::setQueried(bool queried)
+{
+    m_queried = queried;
+}
+
+Glib::RefPtr<Gio::File>
+FileTreeNode::getDirFile()
+{
+    return m_dir;
+}
+
 FileTreeModel::FileTreeModel(const std::shared_ptr<TreeColumns>& treeColumns)
 : Glib::ObjectBase(typeid(FileTreeModel)) // Register a custom GType.
 , psc::ui::TreeNodeModel::TreeNodeModel(treeColumns)
 {
 
 }
-
-std::shared_ptr<TreeColumns> FileTreeModel::m_treeColumns;
 
 Glib::RefPtr<FileTreeModel>
 FileTreeModel::create()

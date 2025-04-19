@@ -35,13 +35,11 @@ ArchivExtractEntry::ArchivExtractEntry(struct archive_entry *entry, const Glib::
 int
 ArchivExtractEntry::handleContent(struct archive* archiv)
 {
-    if (!m_dir) {           // convention no dir -> no restore
-        if (getSize() == 0) {
-            setSize(9999);  // as we are not interested to sum size just want to skip
-        }
-        return ArchivEntry::handleContent(archiv);
-    }
     int ret{ARCHIVE_OK};
+    if (!m_dir) {           // convention no dir -> no restore
+        ret = archive_read_data_skip(archiv);
+        return ret;
+    }
     auto file = m_dir->get_child(getPath());    // should we work with temps???
     //std::cout << "ArchivExtractEntry::handleContent " << getPath()
     //          << " mode " << getMode()
@@ -138,6 +136,12 @@ ArchivExtractEntry::handleContent(struct archive* archiv)
     return ret;
 }
 
+bool
+ArchivExtractEntry::isUsed()
+{
+    return m_dir.operator bool();
+}
+
 // use additional listener for processing in main thread
 ArchivExtractWorker::ArchivExtractWorker(
               const Glib::RefPtr<Gio::File>& archiveFile
@@ -163,21 +167,25 @@ ArchivExtractWorker::ArchivExtractWorker(
 PtrArchivEntry
 ArchivExtractWorker::createEntry(struct archive_entry *entry)
 {
+    Glib::RefPtr<Gio::File> dir;
     Glib::ustring path = archive_entry_pathname_utf8(entry);
     if (m_items.empty() || m_items.contains(path)) {
+        dir = m_extractDir;
         //std::cout << "ArchivExtractWorker::createEntry extract " << path
         //          << " items " << m_items.size()
         //          << " dir " << (m_extractDir ? m_extractDir->get_path() : std::string("noDir")) << std::endl;
-        return std::make_shared<ArchivExtractEntry>(entry, m_extractDir);
     }
-    return std::make_shared<ArchivEntry>(entry);
+    return std::make_shared<ArchivExtractEntry>(entry, dir);
 }
 
 void
 ArchivExtractWorker::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
 {
     // this is called from thread context, and push to main thread
-    notify(entry);
+     auto extract = std::dynamic_pointer_cast<ArchivExtractEntry>(entry);
+     if (extract) {
+        notify(extract);
+     }
 }
 
 void
@@ -196,12 +204,14 @@ ArchivExtractWorker::doInBackground()
 }
 
 void
-ArchivExtractWorker::process(const std::vector<std::shared_ptr<ArchivEntry>>& entries)
+ArchivExtractWorker::process(const std::vector<PtrArchivExtractEntry>& entries)
 {
     // here we are back to main thread ...
     for (auto entry : entries) {
         //std::cout << "main archiv path " << entry->getPath() << std::endl;
-        m_archivListener->archivUpdate(entry);
+        if (entry->isUsed()) {
+            m_archivListener->archivUpdate(entry);
+        }
     }
 }
 
@@ -283,18 +293,15 @@ ExtractDialog::extract()
 void
 ExtractDialog::archivUpdate(const PtrArchivEntry& entry)
 {
-    auto extract = std::dynamic_pointer_cast<ArchivExtractEntry>(entry);
-    if (extract) {      // since we get updates on every entry, filter relevant
-        ++m_extracted;
-        if (m_items.size() > 0) {
-            auto fract = static_cast<double>(m_extracted) / static_cast<double>(m_items.size());
-            m_progress->set_fraction(fract);
-        }
-        else {
-            m_progress->pulse();    // show as unknown
-        }
-        m_progress->set_text(entry->getPath());
+    ++m_extracted;
+    if (m_items.size() > 0) {
+        auto fract = static_cast<double>(m_extracted) / static_cast<double>(m_items.size());
+        m_progress->set_fraction(fract);
     }
+    else {
+        m_progress->pulse();    // show as unknown
+    }
+    m_progress->set_text(entry->getPath());
 }
 
 void
@@ -309,7 +316,7 @@ ExtractDialog::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
     m_progress->set_fraction(1.0);      // indicate as completed
     m_cancel->set_sensitive(true);      // now we are ready to close
     auto varselList = dynamic_cast<VarselList*>(m_win);
-    m_open->set_sensitive(varselList != nullptr);       // open only works if invoked from list
+    m_open->set_sensitive(varselList);       // open only works if invoked from list
 }
 
 Glib::RefPtr<Gio::File>

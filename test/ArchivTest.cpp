@@ -138,6 +138,48 @@ ArchivTest::archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg)
     }
 }
 
+bool
+ArchivTest::testList()
+{
+    Glib::RefPtr<Gio::FileEnumerator> enumerat;
+    try {
+        auto home = Gio::File::create_for_path(Glib::get_home_dir());
+        auto dir = home->get_child("temp")->get_child("b");
+
+        auto cancellable = Gio::Cancellable::create();
+        enumerat = dir->enumerate_children(
+              cancellable
+            , "*"
+            , Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
+        while (true) {
+            auto fileInfo = enumerat->next_file();
+            if (fileInfo) {
+                auto child = dir->get_child(fileInfo->get_name());
+                auto childInfo = child->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+
+                std::cout << "name " << fileInfo->get_name()
+                          << " inf type " << fileInfo->get_file_type()
+                          << " cld nof type " << child->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS)
+                          << " cld non type " << child->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE)
+                          << " cld inf type  " << childInfo->get_file_type()
+                          << " target " << (childInfo->has_attribute(G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET) ? childInfo->get_symlink_target() : std::string(""))
+                          << std::endl;
+            }
+            else {
+                break;
+            }
+        }
+    }
+    catch (const Gio::Error& err) {
+        std::cout << "Error " << err.what() << std::endl;
+    }
+    if (enumerat
+     && !enumerat->is_closed()) {
+        enumerat->close();
+    }
+    return true;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -151,6 +193,9 @@ int main(int argc, char** argv)
     }
     if (!archivTest.readWrite()) {
         return 2;
+    }
+    if (!archivTest.testList()) {
+        return 3;
     }
 
     return 0;

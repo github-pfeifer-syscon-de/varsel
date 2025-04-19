@@ -85,10 +85,9 @@ ArchivListWorker::done()
     m_archivListener->archivDone(m_archivSummary, msg);
 }
 
-ArchiveDataSource::ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application)
+ArchiveDataSource::ArchiveDataSource(ListApp* application)
 : DataSource::DataSource(application)
 , ArchivListener::ArchivListener()
-, m_file{file}
 {
 }
 
@@ -137,15 +136,19 @@ ArchiveDataSource::archivUpdate(const std::shared_ptr<ArchivEntry>& entry)
             parts.push_front(fspath->get_basename());
             fspath = fspath->get_parent();
         }
+        Glib::ustring path;
         for (auto iter = parts.begin(); iter != parts.end(); ++iter) {
             auto spart = *iter;
             if (!spart.empty()) {
+                path += "/" + spart;
                 //std::cout << "ArchiveDataSource::update" << "   part " << part << std::endl;
                 auto foundNode = addNode->findNode(spart);
                 if (!foundNode) {
                     //std::cout << "ArchiveDataSource::update creating " << spart  << std::endl;
-                    auto partItem = std::make_shared<FileTreeNode>(spart, addNode->getDepth() + 1);
+                    auto file = Gio::File::create_for_path(path);
+                    auto partItem = std::make_shared<FileTreeNode>(file, spart, addNode->getDepth() + 1);
                     addNode->addChild(partItem);
+                    partItem->setQueried(true); // don't expect to find more
                     m_treeModel->memory_row_inserted(partItem); // notify as the model was attached
                     foundNode = partItem;
                     if (m_listListener) {
@@ -203,13 +206,21 @@ ArchiveDataSource::archivDone(ArchivSummary archivSummary, const Glib::ustring& 
 
 void
 ArchiveDataSource::update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+          const Glib::RefPtr<Gio::File>& file
+        , std::shared_ptr<psc::ui::TreeNode> treeItem
+        , const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener)
 {
+    m_file = file;
     m_listListener = listListener;
     m_treeModel = treeModel;
-    m_treeItem = std::make_shared<FileTreeNode>("", 0);
-    treeModel->append(m_treeItem);
+    if (!treeItem) {
+        auto dir = Gio::File::create_for_path("/");
+        treeItem = m_treeItem = std::make_shared<FileTreeNode>(dir, "", 0);
+        treeModel->append(m_treeItem);
+    }
+    auto fileTreeNode = std::dynamic_pointer_cast<FileTreeNode>(treeItem);
+    fileTreeNode->setQueried(true);
 
     m_archivWorker = std::make_shared<ArchivListWorker>(m_file, this);
     //std::cout << "ArchiveDataSource::update" << m_archivWorker.get() << std::endl;
@@ -229,16 +240,8 @@ ArchiveDataSource::getListColumns()
 }
 
 
-Glib::RefPtr<Gio::File>
-ArchiveDataSource::getFileName(const std::string& name)
-{
-    //auto file = m_file->get_child(name);
-    // expand to temp?
-    return Glib::RefPtr<Gio::File>();
-}
-
 void
-ArchiveDataSource::paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win)
+ArchiveDataSource::paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win)
 {
     std::cout << "ArchiveDataSource::paste " << uris.size() << std::endl;
 }

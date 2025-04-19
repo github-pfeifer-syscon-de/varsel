@@ -53,8 +53,8 @@ GitTreeNode::getEntries()
     return m_entries;
 }
 
-GitDataSource::GitDataSource(const Glib::RefPtr<Gio::File>& dir, ListApp* application)
-: FileDataSource(dir, application)
+GitDataSource::GitDataSource(ListApp* application)
+: FileDataSource(application)
 {
 }
 
@@ -71,13 +71,18 @@ GitDataSource::isDisplayable(const Glib::RefPtr<Gio::File>& file)
 
 void
 GitDataSource::update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+          const Glib::RefPtr<Gio::File>& dir
+        , std::shared_ptr<psc::ui::TreeNode> treeNode
+        , const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener)
 {
     try {
-        auto treeNode = std::make_shared<GitTreeNode>(".", 1);
-        treeModel->append(treeNode);
-        psc::git::Repository repository(m_dir->get_path());
+        if (!treeNode) {
+            treeNode = std::make_shared<GitTreeNode>(".", 1);
+            treeModel->append(treeNode);
+        }
+        auto gitTreeNode = std::dynamic_pointer_cast<GitTreeNode>(treeNode);
+        psc::git::Repository repository(dir->get_path());
         auto status = repository.getStatus();
         for (auto iter = status.begin(); iter != status.end(); ++iter) {
             std::string name;
@@ -92,7 +97,7 @@ GitDataSource::update(
             }
             if (!name.empty()) {
                 //std::cout << "GitDataSource::update got " << name << std::endl;
-                auto node = treeNode;
+                auto node = gitTreeNode;
                 std::vector<Glib::ustring> parts;
                 parts.reserve(8);
                 StringUtils::split(name, '/', parts);
@@ -106,7 +111,7 @@ GitDataSource::update(
                     node = next;
                 }
 
-                auto file = getFileName(name);
+                auto file = dir->get_child(name);
                 if (isDisplayable(file) ) {
                     auto list = node->appendList();
                     auto row = *list;
@@ -124,7 +129,7 @@ GitDataSource::update(
         }
     }
     catch (const psc::git::GitException& ex) {
-        std::cout << "Error " << ex.what() << " querying repos " << m_dir->get_path() << std::endl;
+        std::cout << "Error " << ex.what() << " querying repos " << dir->get_path() << std::endl;
     }
 }
 

@@ -21,44 +21,60 @@
 #include "FileDataSource.hpp"
 #include "ListApp.hpp"
 
-FileDataSource::FileDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application)
+FileDataSource::FileDataSource(ListApp* application)
 : DataSource::DataSource(application)
-, m_dir{file}
 {
 }
 
 void
 FileDataSource::update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+          const Glib::RefPtr<Gio::File>& dir
+        , std::shared_ptr<psc::ui::TreeNode> treeItem
+        , const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener)
 {
     Glib::RefPtr<Gio::FileEnumerator> enumerat;
     try {
-
-        auto fileInfo = m_dir->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
-        auto treeItem = std::make_shared<FileTreeNode>(fileInfo->get_display_name(), 0);
-        treeModel->append(treeItem);
+        auto fileInfo = dir->query_info("*", Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+        if (!treeItem) {
+            treeItem = std::make_shared<FileTreeNode>(dir, fileInfo->get_display_name(), 0);
+            treeModel->append(treeItem);
+        }
+        auto fileTreeItem = std::dynamic_pointer_cast<FileTreeNode>(treeItem);
+        fileTreeItem->setQueried(true);
 
         auto cancellable = Gio::Cancellable::create();
-        enumerat = m_dir->enumerate_children(
+        enumerat = dir->enumerate_children(
               cancellable
             , "*"
             , Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
         while (true) {   //enumerat->has_pending()
             auto fileInfo = enumerat->next_file();
             if (fileInfo) {
-                if (fileInfo->get_file_type() == Gio::FileType::FILE_TYPE_DIRECTORY) {
-                    auto subTreeItem = std::make_shared<FileTreeNode>(fileInfo->get_display_name(), treeItem->getDepth() + 1);
+                auto child = dir->get_child(fileInfo->get_name());
+                // this gives the linked type 
+                auto type = child->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+                //if (type == Gio::FileType::FILE_TYPE_SYMBOLIC_LINK) {
+                //}
+                switch(type) {
+                case Gio::FileType::FILE_TYPE_DIRECTORY:
+                    {
+                    auto subTreeItem = std::make_shared<FileTreeNode>(child, fileInfo->get_display_name(), treeItem->getDepth() + 1);
                     treeModel->append(treeItem, subTreeItem);
-                }
-                else if (fileInfo->get_file_type() == Gio::FileType::FILE_TYPE_REGULAR) {
-                    auto iter = treeItem->appendList();
+                    }
+                    break;
+                case Gio::FileType::FILE_TYPE_REGULAR:
+                    {
+                    auto iter = fileTreeItem->appendList();
                     auto row = *iter;
                     //std::cout << "file name " << name << " size " << fileInfo->get_size() << std::endl;
                     auto listColumns = getListColumns();
-                    auto file = m_dir->get_child(fileInfo->get_name());
-                    setFileValues(row, file, fileInfo, listColumns);
-                }
+                    setFileValues(row, child, fileInfo, listColumns);
+                    }
+                    break;
+                default:        // Ignore
+                    break;
+            }
             }
             else {
                 break;
@@ -106,13 +122,6 @@ FileDataSource::getConfigGroup()
     return "FileData";
 }
 
-Glib::RefPtr<Gio::File>
-FileDataSource::getFileName(const std::string& name)
-{
-    auto file = m_dir->get_child(name);
-    return file;
-}
-
 void
 FileDataSource::progress(goffset current_num_bytes, goffset total_num_bytes)
 {
@@ -121,7 +130,7 @@ FileDataSource::progress(goffset current_num_bytes, goffset total_num_bytes)
 }
 
 void
-FileDataSource::paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win)
+FileDataSource::paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win)
 {
     std::cout << "FileDataSource::paste " << uris.size() << std::endl;
     for (auto& uri : uris) {
@@ -129,7 +138,7 @@ FileDataSource::paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win)
         auto fileType = file->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
         if (file->query_exists()
          && fileType == Gio::FileType::FILE_TYPE_REGULAR) {
-            auto localFile = m_dir->get_child(file->get_basename());
+            auto localFile = dir->get_child(file->get_basename());
             if (localFile->query_exists()) {
                 auto msg = Glib::ustring::sprintf(_("Overwrite %s"), localFile->get_basename());
                 Gtk::MessageDialog msgDlg(*win, msg, false, Gtk::MessageType::MESSAGE_QUESTION, Gtk::ButtonsType::BUTTONS_YES_NO, true);

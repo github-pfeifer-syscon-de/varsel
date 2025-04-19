@@ -114,15 +114,20 @@ class FileTreeNode
 : public BaseTreeNode
 {
 public:
-    FileTreeNode(const Glib::ustring& dir, unsigned long depth);
+    FileTreeNode(const Glib::RefPtr<Gio::File>& dir, const Glib::ustring& name, unsigned long depth);
     virtual ~FileTreeNode() = default;
 
      Gtk::TreeModel::iterator appendList() override;
      Glib::RefPtr<Gtk::ListStore> getEntries() override;
+     bool isQueried();
+     void setQueried(bool queried);
+     Glib::RefPtr<Gio::File> getDirFile();
      static std::shared_ptr<ListColumns> getListColumns();
 private:
+    Glib::RefPtr<Gio::File> m_dir;
     static std::shared_ptr<ListColumns> m_listColumns;
     Glib::RefPtr<Gtk::ListStore> m_entries;
+    bool m_queried{false};
 };
 
 class TreeColumns
@@ -160,13 +165,14 @@ public:
     virtual ~DataSource() = default;
 
     virtual void update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+          const Glib::RefPtr<Gio::File>& file
+        , std::shared_ptr<psc::ui::TreeNode> treeItem
+        , const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener) = 0;
     virtual Glib::RefPtr<psc::ui::TreeNodeModel> createTree();
     virtual const char* getConfigGroup() = 0;
-    virtual Glib::RefPtr<Gio::File> getFileName(const std::string& name) = 0;
     virtual std::shared_ptr<ListColumns> getListColumns();
-    virtual void paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win) = 0;
+    virtual void paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win) = 0;
     virtual void distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win) = 0;
     void open(std::vector<Glib::RefPtr<Gio::File>>& files);
 

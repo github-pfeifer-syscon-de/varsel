@@ -80,7 +80,8 @@ VarselList::showFile(const Glib::RefPtr<Gio::File>& file)
     int pos = m_config->getInteger(m_data->getConfigGroup(), PANED_POS, 200);
     m_paned->set_position(pos);
 
-    m_data->update(m_refTreeModel, this);
+    std::shared_ptr<BaseTreeNode> btn;
+    m_data->update(file, btn, m_refTreeModel, this);
     m_treeView->set_model(m_refTreeModel);
     m_treeView->expand_all();
     m_treeView->get_selection()->signal_changed().connect(
@@ -123,14 +124,14 @@ VarselList::setupDataSource(const Glib::RefPtr<Gio::File>& file)
     auto type = file->query_file_type();
     if (type == Gio::FileType::FILE_TYPE_REGULAR
      && ArchiveDataSource::can_handle(file)) {
-        ds = std::make_shared<ArchiveDataSource>(file, m_listApp);
+        ds = std::make_shared<ArchiveDataSource>(m_listApp);
     }
     else if (type == Gio::FileType::FILE_TYPE_DIRECTORY
           && gitDir->query_exists()) {
-        ds = std::make_shared<GitDataSource>(file, m_listApp);
+        ds = std::make_shared<GitDataSource>(m_listApp);
     }
     else if (type == Gio::FileType::FILE_TYPE_DIRECTORY) {
-        ds = std::make_shared<FileDataSource>(file, m_listApp);
+        ds = std::make_shared<FileDataSource>(m_listApp);
     }
     //if (ds) {
     //    VarselList::show(file->get_uri(), ds, m_listApp);
@@ -174,10 +175,20 @@ VarselList::updateList()
     auto sel = m_treeView->get_selection();
     auto iter = sel->get_selected();
     if (iter) {
-        auto row = m_refTreeModel->get_node(iter);
-        auto ftn = dynamic_cast<BaseTreeNode*>(row);
-        if (ftn) {
-            m_listView->set_model(ftn->getEntries());
+        auto node = m_refTreeModel->get_node(iter);
+        auto btn = dynamic_cast<BaseTreeNode*>(node);
+        if (btn) {
+            auto ftn = dynamic_cast<FileTreeNode*>(btn);
+            if (ftn) {  // no dynamic updating if not filetreenode
+                if (ftn && !ftn->isQueried()) {
+                    auto file = ftn->getDirFile();
+                    // convert to shared ...
+                    auto parent  = ftn->getParent();
+                    auto sftn = parent->getItem(ftn->getChildIdx());
+                    m_data->update(file, sftn, m_refTreeModel, this);
+                }
+            }
+            m_listView->set_model(btn->getEntries());
         }
         else {
             std::cout << "VarselList::updateList no BaseTreeNode" << std::endl;
@@ -318,9 +329,17 @@ VarselList::on_uri_received(const std::vector<Glib::ustring>& uris)
         std::cout << "   " << uris[i] << std::endl;
     }
 #   endif
-
-    m_data->paste(uris, this);
-
+    auto sel = m_treeView->get_selection();
+    auto iter = sel->get_selected();
+    if (iter) {
+        auto node = m_refTreeModel->get_node(iter);
+        auto ftn = dynamic_cast<FileTreeNode*>(node);
+        auto dir = ftn->getDirFile();
+        m_data->paste(dir, uris, this);
+    }
+    else {
+        std::cout << "VarselList::on_uri_received no selection!" << std::endl;
+    }
 }
 
 void

@@ -121,12 +121,14 @@ class GitDataSource
 : public FileDataSource
 {
 public:
-    GitDataSource(const Glib::RefPtr<Gio::File>& dir, ListApp* application);
+    GitDataSource(ListApp* application);
     explicit GitDataSource(const GitDataSource& orig) = delete;
     virtual ~GitDataSource() = default;
 
     void update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+          const Glib::RefPtr<Gio::File>& dir
+        , std::shared_ptr<psc::ui::TreeNode> treeItem
+        , const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener) override;
     const char* getConfigGroup() override;
     std::shared_ptr<ListColumns> getListColumns() override;

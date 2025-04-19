@@ -31,9 +31,9 @@ public:
 
     bool readTest();
     bool readWrite();
+    bool testList();
     void archivUpdate(const std::shared_ptr<ArchivEntry>& entry) override;
     void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) override;
-
 private:
     int m_entries{0};
     int m_final{0};

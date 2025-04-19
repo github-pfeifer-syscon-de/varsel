@@ -156,7 +156,7 @@ public:
     {
         return std::make_shared<ArchivEntry>(entry);
     }
-    virtual void archivUpdate(const std::shared_ptr<ArchivEntry>& entry) = 0;
+    virtual void archivUpdate(const PtrArchivEntry& entry) = 0;
     virtual void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) = 0;
 protected:
 

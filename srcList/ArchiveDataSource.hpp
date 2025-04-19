@@ -60,21 +60,22 @@ class ArchiveDataSource
 , public ArchivListener
 {
 public:
-    ArchiveDataSource(const Glib::RefPtr<Gio::File>& file, ListApp* application);
+    ArchiveDataSource(ListApp* application);
     explicit ArchiveDataSource(const ArchiveDataSource& orig) = delete;
     virtual ~ArchiveDataSource() = default;
 
     void update(
-          const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
+          const Glib::RefPtr<Gio::File>& file
+        , std::shared_ptr<psc::ui::TreeNode> treeItem
+        , const Glib::RefPtr<psc::ui::TreeNodeModel>& treeModel
         , ListListener* listListener) override;
     const char* getConfigGroup() override;
-    Glib::RefPtr<Gio::File> getFileName(const std::string& name) override;
     static bool can_handle(const Glib::RefPtr<Gio::File>& file);
     std::shared_ptr<ListColumns> getListColumns() override;
 
     void archivUpdate(const std::shared_ptr<ArchivEntry>& entry)  override;
     void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) override;
-    void paste(const std::vector<Glib::ustring>& uris, Gtk::Window* win) override;
+    void paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win) override;
     void distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win) override;
     Gtk::MenuItem* createItem(const std::vector<PtrEventItem>& items, Gtk::Menu* gtkMenu, const Glib::ustring& name, Gtk::Window* win);
     void do_handle(const std::vector<PtrEventItem>& items, Gtk::Window* win);
