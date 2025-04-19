@@ -286,8 +286,13 @@ ExtractDialog::archivUpdate(const PtrArchivEntry& entry)
     auto extract = std::dynamic_pointer_cast<ArchivExtractEntry>(entry);
     if (extract) {      // since we get updates on every entry, filter relevant
         ++m_extracted;
-        double fract = static_cast<double>(m_extracted) / static_cast<double>(m_items.size());
-        m_progress->set_fraction(fract);
+        if (m_items.size() > 0) {
+            auto fract = static_cast<double>(m_extracted) / static_cast<double>(m_items.size());
+            m_progress->set_fraction(fract);
+        }
+        else {
+            m_progress->pulse();    // show as unknown
+        }
         m_progress->set_text(entry->getPath());
     }
 }
@@ -301,7 +306,8 @@ ExtractDialog::archivDone(ArchivSummary archivSummary, const Glib::ustring& msg)
     else {
         m_info->set_text(Glib::ustring::sprintf(_("Completed %d entries"), archivSummary.getEntries()));
     }
-    m_cancel->set_sensitive(true);   // now we are ready to close
+    m_progress->set_fraction(1.0);      // indicate as completed
+    m_cancel->set_sensitive(true);      // now we are ready to close
     auto varselList = dynamic_cast<VarselList*>(m_win);
     m_open->set_sensitive(varselList != nullptr);       // open only works if invoked from list
 }
