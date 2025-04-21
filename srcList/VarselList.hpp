@@ -62,6 +62,9 @@ protected:
     void on_uri_received(const std::vector<Glib::ustring>& uris);
     void updateList();
     bool getSelection(GdkEventButton* event, std::vector<PtrEventItem>& items);
+    void getClipboard(Gtk::SelectionData& data, guint type);
+    void clearClipboard();
+    Glib::ustring getSelectionAsText(const char* prefix, bool format_for_text);
 
     std::shared_ptr<DataSource> setupDataSource(const Glib::RefPtr<Gio::File>& file);
     //void createWindow(const Glib::VariantBase& variant, const Glib::ustring& action);
@@ -77,6 +80,7 @@ private:
 
     Glib::RefPtr<psc::ui::TreeNodeModel> m_refTreeModel;
     Gtk::Paned* m_paned;
+    std::vector<Glib::RefPtr<Gio::File>> m_selecion;
 };
 
 

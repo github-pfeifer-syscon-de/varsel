@@ -82,6 +82,7 @@ public:
     Gtk::TreeModelColumn<Glib::DateTime> m_modified;
     Gtk::TreeModelColumn<Glib::ustring> m_contentType;
     Gtk::TreeModelColumn<Glib::RefPtr<Glib::Object>> m_icon;
+    Gtk::TreeModelColumn<Glib::ustring> m_symLink;
 
     Gtk::TreeModelColumn<Glib::RefPtr<Gio::FileInfo>> m_fileInfo;
     Gtk::TreeModelColumn<Glib::RefPtr<Gio::File>> m_file;

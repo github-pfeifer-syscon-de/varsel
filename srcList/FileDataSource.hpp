@@ -39,6 +39,7 @@ public:
         , ListListener* listListener) override;
     virtual const char* getConfigGroup() override;
 
+    Glib::ustring readableFileType(Gio::FileType fileType);
     void setFileValues(Gtk::TreeRow& row
         , const Glib::RefPtr<Gio::File>& file
         , const Glib::RefPtr<Gio::FileInfo>& fileInfo

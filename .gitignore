@@ -85,3 +85,6 @@
 /test/lsp_test.trs
 /srcLib/.deps/
 /srcList/.deps/
+/test/file_test.trs
+/test/file_test
+/test/file_test.log

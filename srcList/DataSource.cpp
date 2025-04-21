@@ -44,8 +44,8 @@ BaseTreeNode::getValue(int column, Glib::ValueBase& value)
 {
     using StringColumn = Gtk::TreeModelColumn<Glib::ustring>;
     switch (column) {
-    case 0: // make this depend on real value
-    {
+    case 0: { // make this depend on real value
+
         StringColumn::ValueType sValue;
         sValue.init(StringColumn::ValueType::value_type());
         sValue.set(m_dir);
@@ -60,14 +60,12 @@ void
 BaseTreeNode::setValue(int column, const Glib::ValueBase& value)
 {
     switch (column) {
-    case 0: // make this depend...
-    {
+    case 0: { // make this depend...
         //const char* cstr = g_value_get_string(value.gobj());    // how do this by glibmm?
         Glib::Value<std::string> svalue;
         svalue.init(value.gobj());
         m_dir = svalue.get();
         break;
-
     }
     }
 }

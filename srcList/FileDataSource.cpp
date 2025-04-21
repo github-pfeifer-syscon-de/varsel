@@ -48,35 +48,30 @@ FileDataSource::update(
               cancellable
             , "*"
             , Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NOFOLLOW_SYMLINKS);
-        while (true) {   //enumerat->has_pending()
+        while (true) {
             auto fileInfo = enumerat->next_file();
-            if (fileInfo) {
-                auto child = dir->get_child(fileInfo->get_name());
-                // this gives the linked type 
-                auto type = child->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
-                //if (type == Gio::FileType::FILE_TYPE_SYMBOLIC_LINK) {
-                //}
-                switch(type) {
-                case Gio::FileType::FILE_TYPE_DIRECTORY:
-                    {
-                    auto subTreeItem = std::make_shared<FileTreeNode>(child, fileInfo->get_display_name(), treeItem->getDepth() + 1);
-                    treeModel->append(treeItem, subTreeItem);
-                    }
-                    break;
-                case Gio::FileType::FILE_TYPE_REGULAR:
-                    {
-                    auto iter = fileTreeItem->appendList();
-                    auto row = *iter;
-                    //std::cout << "file name " << name << " size " << fileInfo->get_size() << std::endl;
-                    auto listColumns = getListColumns();
-                    setFileValues(row, child, fileInfo, listColumns);
-                    }
-                    break;
-                default:        // Ignore
-                    break;
+            if (!fileInfo) {
+                break;
             }
-            }
-            else {
+            auto child = dir->get_child(fileInfo->get_name());
+            // this gives the type linked
+            auto childType = child->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+            switch(fileInfo->get_file_type()) {
+            case Gio::FileType::FILE_TYPE_DIRECTORY: {
+                auto subTreeItem = std::make_shared<FileTreeNode>(child, fileInfo->get_display_name(), treeItem->getDepth() + 1);
+                treeModel->append(treeItem, subTreeItem);
+                }
+                break;
+            case Gio::FileType::FILE_TYPE_REGULAR:
+            case Gio::FileType::FILE_TYPE_SYMBOLIC_LINK: {  // show links in list as there are various additional attributes
+                auto iter = fileTreeItem->appendList();
+                auto row = *iter;
+                //std::cout << "file name " << name << " size " << fileInfo->get_size() << std::endl;
+                auto listColumns = getListColumns();
+                setFileValues(row, child, fileInfo, listColumns);
+                }
+                break;
+            default:        // Ignore
                 break;
             }
         }
@@ -90,6 +85,36 @@ FileDataSource::update(
     }
 }
 
+Glib::ustring
+FileDataSource::readableFileType(Gio::FileType fileType)
+{
+    Glib::ustring type;
+    switch (fileType) {
+    case Gio::FileType::FILE_TYPE_NOT_KNOWN:
+        type = _("Unknown");
+        break;
+    case Gio::FileType::FILE_TYPE_REGULAR:
+        type = _("File");
+        break;
+    case Gio::FileType::FILE_TYPE_DIRECTORY:
+        type = _("Directory");
+        break;
+    case Gio::FileType::FILE_TYPE_SYMBOLIC_LINK:
+        type = _("Symbolic link");
+        break;
+    case Gio::FileType::FILE_TYPE_SPECIAL:
+        type = _("Special");
+        break;
+    case Gio::FileType::FILE_TYPE_SHORTCUT:
+        type = _("Shortcut");
+        break;
+    case Gio::FileType::FILE_TYPE_MOUNTABLE:
+        type = _("Mountable");
+        break;
+    }
+    return type;
+}
+
 void
 FileDataSource::setFileValues(
       Gtk::TreeRow& row
@@ -99,18 +124,25 @@ FileDataSource::setFileValues(
 {
     row.set_value<Glib::ustring>(listColumns->m_name, fileInfo->get_display_name());
     row.set_value(listColumns->m_size, fileInfo->get_size());
-    //row.set_value(listColumns->m_type, "File");
-    row.set_value(listColumns->m_mode, fileInfo->get_attribute_uint32("unix::mode"));
-    Glib::ustring user{fileInfo->get_attribute_string("owner::user")};      // numeric = get_attribute_uint32("unix::uid")};
+    auto linkedFileType = file->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+    row.set_value(listColumns->m_type, readableFileType(linkedFileType));
+    row.set_value(listColumns->m_mode, fileInfo->get_attribute_uint32(G_FILE_ATTRIBUTE_UNIX_MODE));
+    Glib::ustring user{fileInfo->get_attribute_string(G_FILE_ATTRIBUTE_OWNER_USER)};      // numeric = get_attribute_uint32("unix::uid")};
     row.set_value(listColumns->m_user, user);
-    Glib::ustring group{fileInfo->get_attribute_string("owner::group")};    // numeric = get_attribute_uint32("unix::gid");
+    Glib::ustring group{fileInfo->get_attribute_string(G_FILE_ATTRIBUTE_OWNER_GROUP)};    // numeric = get_attribute_uint32("unix::gid");
     row.set_value(listColumns->m_group, group);
     Glib::DateTime modified = fileInfo->get_modification_date_time();
     row.set_value(listColumns->m_modified, modified);
-    Glib::ustring contentType{fileInfo->get_attribute_string("standard::content-type")};
+    Glib::ustring contentType{fileInfo->get_content_type()};
     row.set_value(listColumns->m_contentType, contentType);
-    auto glibObj = fileInfo->get_attribute_object("standard::symbolic-icon");
-    row.set_value(listColumns->m_icon, glibObj);
+    if (fileInfo->has_attribute(G_FILE_ATTRIBUTE_STANDARD_SYMBOLIC_ICON)) {
+        auto glibObj = fileInfo->get_attribute_object(G_FILE_ATTRIBUTE_STANDARD_SYMBOLIC_ICON);
+        row.set_value(listColumns->m_icon, glibObj);
+    }
+    if (fileInfo->has_attribute(G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET)) {
+        Glib::ustring symLink = Glib::strescape(fileInfo->get_attribute_byte_string(G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET));
+        row.set_value(listColumns->m_symLink, symLink);
+    }
 
     row.set_value(listColumns->m_fileInfo, fileInfo);
     row.set_value(listColumns->m_file, file);

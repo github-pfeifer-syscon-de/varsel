@@ -31,6 +31,13 @@
 #include <ListFactory.hpp>
 #include <SourceFactory.hpp>
 
+enum {
+  TARGET_TEXT_URI_LIST,
+  TARGET_GNOME_COPIED_FILES,
+  TARGET_UTF8_STRING,
+};
+
+
 VarselList::VarselList(
       BaseObjectType* cobject
     , const Glib::RefPtr<Gtk::Builder>& builder
@@ -268,6 +275,75 @@ VarselList::on_view_button_release_event(GdkEventButton* event)
     return false;
 }
 
+Glib::ustring
+VarselList::getSelectionAsText(const char* prefix, bool format_for_text)
+{
+    Glib::ustring text;
+    text.reserve(64);
+    if (prefix) {
+        text += prefix;
+    }
+    for (size_t i = 0; i < m_selecion.size(); ++i) {
+        auto& select = m_selecion[i];
+        text += format_for_text
+                ? select->get_parse_name()
+                : Glib::ustring(select->get_uri());
+        if (i < m_selecion.size() - 1) {
+            text += '\n';
+        }
+    }
+    return text;
+}
+
+// see https://github.com/xfce-mirror/thunar/blob/3de231d2dec33ca48b73391386d442231baace3e/thunar/thunar-clipboard-manager.c
+void
+VarselList::getClipboard(Gtk::SelectionData& data, guint type)
+{
+#   ifdef DEBUG
+    std::cout << "VarselList::getClipboard " << type << std::endl;
+#   endif
+    switch (type) {
+    case TARGET_TEXT_URI_LIST: {
+        std::vector<Glib::ustring> uris;
+        uris.reserve(m_selecion.size());
+        for (auto& select : m_selecion) {
+            uris.push_back(select->get_uri());
+        }
+        data.set_uris(uris);
+        }
+        break;
+    case TARGET_GNOME_COPIED_FILES: {
+        const char * prefix = /* files_cutted ? "cut\n" :*/ "copy\n";
+        Glib::ustring text = getSelectionAsText(prefix, false);
+#       ifdef DEBUG
+        std::cout << "VarselList::getClipboard \"" << text << "\"" << std::endl;
+#       endif
+        data.set(data.get_target(), text);
+        }
+        break;
+    case TARGET_UTF8_STRING: {
+        Glib::ustring text = getSelectionAsText(nullptr, true);
+#       ifdef DEBUG
+        std::cout << "VarselList::getClipboard \"" << text << "\"" << std::endl;
+#       endif
+        data.set_text(text);
+        }
+        break;
+    }
+
+}
+
+
+
+void
+VarselList::clearClipboard()
+{
+    // release the infos linked to clipboard ...
+    m_selecion.clear();
+}
+
+
+
 bool
 VarselList::on_view_key_release_event(GdkEventKey* key)
 {
@@ -283,18 +359,27 @@ VarselList::on_view_key_release_event(GdkEventKey* key)
             std::vector<PtrEventItem> items;
             items.reserve(8);
             if (getSelection(nullptr, items)) {
-                Glib::ustring text;
+                std::cout << "VarselList::on_view_key_release_event copied " << items.size() << std::endl;
+                m_selecion.clear();
                 for (auto& item : items) {
-                    if (text.length() > 0) {
-                        text += ", ";
-                    }
-                    text += item->getFile()->get_path();
+                    m_selecion.push_back(item->getFile());
                 }
-#               ifdef DEBUG
-                std::cout << "text " << text << std::endl;
-#               endif
+                Gtk::TargetEntry target_entry0{"text/uri-list", static_cast<Gtk::TargetFlags>(0), TARGET_TEXT_URI_LIST};
+                Gtk::TargetEntry target_entry1{"x-special/gnome-copied-files", static_cast<Gtk::TargetFlags>(0), TARGET_GNOME_COPIED_FILES};
+                Gtk::TargetEntry target_entry2{"UTF8_STRING", static_cast<Gtk::TargetFlags>(0), TARGET_UTF8_STRING};
+                std::vector<Gtk::TargetEntry> list;
+                list.emplace_back(std::move(target_entry0));
+                list.emplace_back(std::move(target_entry1));    // thunar expects the gnome-type
+                list.emplace_back(std::move(target_entry2));
+                //auto list = Gtk::TargetList::create(target_entry0, target_entry1, target_entry2);
+
                 auto refClipboard = Gtk::Clipboard::get();
-                refClipboard->set_text(text);
+                refClipboard->set_can_store(list);
+                if (!refClipboard->set(list
+                        , sigc::mem_fun(*this, &VarselList::getClipboard)
+                        , sigc::mem_fun(*this, &VarselList::clearClipboard))) {
+                    std::cout << "Unable to set clipboard" << std::endl;
+                }
             }
             return true;
         }

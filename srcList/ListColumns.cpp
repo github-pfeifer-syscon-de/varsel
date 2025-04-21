@@ -27,7 +27,7 @@ SizeConverter::SizeConverter(Gtk::TreeModelColumn<goffset>& col)
 void
 SizeConverter::convert(Gtk::CellRenderer* rend, const Gtk::TreeModel::iterator& iter)
 {
-    goffset value = 0l;
+    goffset value{};
     iter->get_value(m_col.index(), value);
     auto textRend = static_cast<Gtk::CellRendererText*>(rend);
     textRend->property_text() = Glib::format_size(value, Glib::FORMAT_SIZE_IEC_UNITS);    // base x^2
@@ -142,6 +142,7 @@ ListColumns::ListColumns()
     add(_("ContentType"), m_contentType);
     auto iconConverter = std::make_shared<IconConverter>(m_icon);
     add<Glib::RefPtr<Glib::Object>>(_("Icon"), iconConverter);
+    add<Glib::ustring>(_("Symbolic link target"), m_symLink);
 
     Gtk::TreeModel::ColumnRecord::add(m_fileInfo);
     Gtk::TreeModel::ColumnRecord::add(m_file);
