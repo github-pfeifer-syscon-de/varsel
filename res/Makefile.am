@@ -23,10 +23,11 @@ desktop_DATA=$(desktop_in_files:.desktop.in=.desktop)
 # application icon
 appicondir = $(datadir)/icons/hicolor/64x64/apps
 appicon_DATA = varsel.png
+appicon_svg = varsel.svg
 appdir_icon=$(appicondir)/$(appicon_DATA)
 
 # include source for build
-EXTRA_DIST = $(VARSEL_RESOURCE_XML) $(VARSEL_RESOURCES) $(desktop_in_files) $(appicon_DATA)
+EXTRA_DIST = $(VARSEL_RESOURCE_XML) $(VARSEL_RESOURCES) $(desktop_in_files) $(appicon_DATA) $(appicon_svg)
 
 clean-local:
 	-rm -rf $(RESOURCE_C)

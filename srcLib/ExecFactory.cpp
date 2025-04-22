@@ -92,7 +92,11 @@ ExecFactory::createShellWindow(const std::vector<PtrEventItem>& eventItem)
     for (auto& item : eventItem) {
         Glib::ustring cmd;
         cmd.reserve(64);
-        cmd.append(DEBUG ? "src/varsel" : "varsel");
+#       ifdef DEBUG
+        cmd.append("src/varsel");
+#       else
+        cmd.append("varsel");
+#       endif
         cmd.append(" ");
         cmd.append(item->getFile()->get_path());
         Glib::spawn_command_line_async(cmd);

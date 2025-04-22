@@ -88,7 +88,11 @@ ListFactory::createListWindow(const std::vector<PtrEventItem>& items)
     for (auto& item : items) {
         Glib::ustring cmd;
         cmd.reserve(64);
-        cmd.append(DEBUG ? "srcList/va_list" : "va_list");
+#       ifdef DEBUG
+        cmd.append("srcList/va_list");
+#       else
+        cmd.append("va_list");
+#       endif
         cmd.append(" ");
         cmd.append(item->getFile()->get_path());
         Glib::spawn_command_line_async(cmd);

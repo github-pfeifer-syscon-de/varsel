@@ -98,7 +98,11 @@ SourceFactory::createSourceWindow(const std::vector<PtrEventItem>& items)
 {
     Glib::ustring cmd;
     cmd.reserve(64);
-    cmd.append(DEBUG ? "srcEdit/va_edit" : "va_edit");
+#   ifdef DEBUG
+    cmd.append("srcEdit/va_edit");
+#   else
+    cmd.append("va_edit");
+#   endif
     for (auto& eventItem : items) {
         cmd.append(" ");
         cmd.append(eventItem->getFile()->get_path());
