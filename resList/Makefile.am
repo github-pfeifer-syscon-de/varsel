@@ -17,7 +17,7 @@ $(RESOURCE_C): $(VARSEL_RESOURCE_XML) $(VARSEL_RESOURCES)
 
 # The desktop files
 desktopdir = $(datadir)/applications
-desktop_in_files=varsel.desktop.in
+desktop_in_files=va_list.desktop.in
 desktop_DATA=$(desktop_in_files:.desktop.in=.desktop)
 
 # application icon
