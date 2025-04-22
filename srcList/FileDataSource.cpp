@@ -20,6 +20,7 @@
 
 #include "FileDataSource.hpp"
 #include "ListApp.hpp"
+#include "CopyDialog.hpp"
 
 FileDataSource::FileDataSource(ListApp* application)
 : DataSource::DataSource(application)
@@ -55,7 +56,7 @@ FileDataSource::update(
             }
             auto child = dir->get_child(fileInfo->get_name());
             // this gives the type linked
-            auto childType = child->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
+            //auto childType = child->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
             switch(fileInfo->get_file_type()) {
             case Gio::FileType::FILE_TYPE_DIRECTORY: {
                 auto subTreeItem = std::make_shared<FileTreeNode>(child, fileInfo->get_display_name(), treeItem->getDepth() + 1);
@@ -154,50 +155,16 @@ FileDataSource::getConfigGroup()
     return "FileData";
 }
 
-void
-FileDataSource::progress(goffset current_num_bytes, goffset total_num_bytes)
-{
-    std::cout << "FileDataSource::progress "
-              << current_num_bytes <<  "/" << total_num_bytes << std::endl;
-}
 
 void
-FileDataSource::paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win)
+FileDataSource::paste(
+          const std::vector<Glib::ustring>& uris
+        , const Glib::RefPtr<Gio::File>& dir
+        , bool isMove
+        , VarselList* win)
 {
     std::cout << "FileDataSource::paste " << uris.size() << std::endl;
-    for (auto& uri : uris) {
-        auto file = Gio::File::create_for_uri(uri);
-        auto fileType = file->query_file_type(Gio::FileQueryInfoFlags::FILE_QUERY_INFO_NONE);
-        if (file->query_exists()
-         && fileType == Gio::FileType::FILE_TYPE_REGULAR) {
-            auto localFile = dir->get_child(file->get_basename());
-            if (localFile->query_exists()) {
-                auto msg = Glib::ustring::sprintf(_("Overwrite %s"), localFile->get_basename());
-                Gtk::MessageDialog msgDlg(*win, msg, false, Gtk::MessageType::MESSAGE_QUESTION, Gtk::ButtonsType::BUTTONS_YES_NO, true);
-                auto ret = msgDlg.run();
-                if (ret == Gtk::RESPONSE_NO) {
-                    continue;
-                }
-            }
-            auto cancel = Gio::Cancellable::create();
-            if (!file->copy(localFile
-                      , sigc::mem_fun(*this,&FileDataSource::progress)
-                      , cancel
-                      , Gio::FILE_COPY_OVERWRITE)) {
-                auto msg = Glib::ustring::sprintf(_("Error writing %s!\nContinue?"), localFile->get_basename());
-                Gtk::MessageDialog msgDlg(*win, msg, false, Gtk::MessageType::MESSAGE_QUESTION, Gtk::ButtonsType::BUTTONS_YES_NO, true);
-                if (!msgDlg.run()) {
-                    break;
-                }
-            }
-        }
-        else {
-            std::cout << "Skipping " << file->get_basename()
-                      << " exists " << std::boolalpha << file->query_exists()
-                      << " type " << fileType
-                      << std::endl;
-        }
-    }
+    CopyDialog::show(uris, dir, isMove, win);
 }
 
 void

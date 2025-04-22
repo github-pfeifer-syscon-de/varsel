@@ -44,11 +44,13 @@ public:
         , const Glib::RefPtr<Gio::File>& file
         , const Glib::RefPtr<Gio::FileInfo>& fileInfo
         , const std::shared_ptr<ListColumns>& listColumns);
-    void paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win) override;
+    void paste(const std::vector<Glib::ustring>& uris
+             , const Glib::RefPtr<Gio::File>& dir
+             , bool isMove
+             , VarselList* win) override;
     void distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win) override;
 
 protected:
-    void progress(goffset current_num_bytes, goffset total_num_bytes);
 
 private:
 };

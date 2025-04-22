@@ -342,7 +342,6 @@ ExtractDialog::show(
             ret = extractDialog->getDirectory();
         }
         delete extractDialog;
-        // here we run into some problem how to delete ?
     }
     catch (const Glib::Error &ex) {
         //listApp->showMessage(

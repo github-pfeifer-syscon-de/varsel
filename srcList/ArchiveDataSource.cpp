@@ -241,7 +241,11 @@ ArchiveDataSource::getListColumns()
 
 
 void
-ArchiveDataSource::paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win)
+ArchiveDataSource::paste(
+          const std::vector<Glib::ustring>& uris
+        , const Glib::RefPtr<Gio::File>& dir
+        , bool isMove
+        , VarselList* win)
 {
     std::cout << "ArchiveDataSource::paste " << uris.size() << std::endl;
 }

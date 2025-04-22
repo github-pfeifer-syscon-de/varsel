@@ -156,6 +156,7 @@ protected:
     static std::shared_ptr<TreeColumns> m_treeColumns;
 };
 
+class VarselList;
 
 class DataSource
 {
@@ -172,7 +173,11 @@ public:
     virtual Glib::RefPtr<psc::ui::TreeNodeModel> createTree();
     virtual const char* getConfigGroup() = 0;
     virtual std::shared_ptr<ListColumns> getListColumns();
-    virtual void paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win) = 0;
+    virtual void paste(
+                  const std::vector<Glib::ustring>& uris
+                , const Glib::RefPtr<Gio::File>& dir
+                , bool isMove
+                , VarselList* win) = 0;
     virtual void distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win) = 0;
     void open(std::vector<Glib::RefPtr<Gio::File>>& files);
 

@@ -75,7 +75,10 @@ public:
 
     void archivUpdate(const std::shared_ptr<ArchivEntry>& entry)  override;
     void archivDone(ArchivSummary archivSummary, const Glib::ustring& errMsg) override;
-    void paste(const Glib::RefPtr<Gio::File>& dir, const std::vector<Glib::ustring>& uris, Gtk::Window* win) override;
+    void paste(const std::vector<Glib::ustring>& uris
+            , const Glib::RefPtr<Gio::File>& dir
+            , bool isMove
+            , VarselList* win) override;
     void distribute(const std::vector<PtrEventItem>& items, Gtk::Menu* menu, Gtk::Window* win) override;
     Gtk::MenuItem* createItem(const std::vector<PtrEventItem>& items, Gtk::Menu* gtkMenu, const Glib::ustring& name, Gtk::Window* win);
     void do_handle(const std::vector<PtrEventItem>& items, Gtk::Window* win);

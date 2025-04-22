@@ -51,20 +51,28 @@ public:
 
     void showFile(const Glib::RefPtr<Gio::File>& file);
     //static constexpr auto ACTION_GROUP = "list";
-    static constexpr auto PANED_POS = "panedPos";
+    static constexpr auto PANED_POS{"panedPos"};
     std::shared_ptr<VarselConfig> getKeyFile();
     void save_config();
+
+    static constexpr auto CLIPBOARD_URIS_CONTENT_TYPE{"text/uri-list"};
+    static constexpr auto CLIPBOARD_GNOME_FILES_CONTENT_TYPE{"x-special/gnome-copied-files"};
+    static constexpr auto CLIPBOARD_UTF8_STRINGS_CONTENT_TYPE{"UTF8_STRING"};
+    static constexpr auto CLIPBOARD_CUT{"cut"};
+    static constexpr auto CLIPBOARD_COPY{"copy"};
 protected:
     bool on_view_button_press_event(GdkEventButton* event);
     bool on_view_button_release_event(GdkEventButton* event);
     bool on_view_key_release_event(GdkEventKey* event);
     void on_text_received(const Glib::ustring& text);
-    void on_uri_received(const std::vector<Glib::ustring>& uris);
+    void on_target_received(const Gtk::SelectionData& selection);
+    void on_targets_received(const std::vector<Glib::ustring>& targets);
     void updateList();
     bool getSelection(GdkEventButton* event, std::vector<PtrEventItem>& items);
     void getClipboard(Gtk::SelectionData& data, guint type);
     void clearClipboard();
     Glib::ustring getSelectionAsText(const char* prefix, bool format_for_text);
+    void setClipboard(bool clipboardMove);
 
     std::shared_ptr<DataSource> setupDataSource(const Glib::RefPtr<Gio::File>& file);
     //void createWindow(const Glib::VariantBase& variant, const Glib::ustring& action);
@@ -81,6 +89,7 @@ private:
     Glib::RefPtr<psc::ui::TreeNodeModel> m_refTreeModel;
     Gtk::Paned* m_paned;
     std::vector<Glib::RefPtr<Gio::File>> m_selecion;
+    bool m_clipboardMove{false};
 };
 
 

@@ -45,6 +45,8 @@ va_list_SOURCES = resources.c \
 	ListColumns.hpp \
 	ExtractDialog.cpp \
 	ExtractDialog.hpp \
+	CopyDialog.cpp \
+	CopyDialog.hpp \
 	DataSource.cpp \
 	DataSource.hpp
 

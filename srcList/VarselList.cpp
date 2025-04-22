@@ -31,10 +31,10 @@
 #include <ListFactory.hpp>
 #include <SourceFactory.hpp>
 
-enum {
-  TARGET_TEXT_URI_LIST,
-  TARGET_GNOME_COPIED_FILES,
-  TARGET_UTF8_STRING,
+enum class CLIPBOARD_TARGET {
+  TEXT_URI_LIST,
+  GNOME_COPIED_FILES,
+  UTF8_STRING,
 };
 
 
@@ -281,7 +281,7 @@ VarselList::getSelectionAsText(const char* prefix, bool format_for_text)
     Glib::ustring text;
     text.reserve(64);
     if (prefix) {
-        text += prefix;
+        text += prefix + '\n';
     }
     for (size_t i = 0; i < m_selecion.size(); ++i) {
         auto& select = m_selecion[i];
@@ -297,13 +297,16 @@ VarselList::getSelectionAsText(const char* prefix, bool format_for_text)
 
 // see https://github.com/xfce-mirror/thunar/blob/3de231d2dec33ca48b73391386d442231baace3e/thunar/thunar-clipboard-manager.c
 void
-VarselList::getClipboard(Gtk::SelectionData& data, guint type)
+VarselList::getClipboard(Gtk::SelectionData& data, guint intType)
 {
+    auto type = static_cast<CLIPBOARD_TARGET>(intType);
 #   ifdef DEBUG
-    std::cout << "VarselList::getClipboard " << type << std::endl;
+    std::cout << "VarselList::getClipboard " << static_cast<int>(type)
+              << " selected " << m_selecion.size()
+              << " kind " << (m_clipboardMove ? "move" : "copy")  << std::endl;
 #   endif
     switch (type) {
-    case TARGET_TEXT_URI_LIST: {
+    case CLIPBOARD_TARGET::TEXT_URI_LIST: {
         std::vector<Glib::ustring> uris;
         uris.reserve(m_selecion.size());
         for (auto& select : m_selecion) {
@@ -312,37 +315,62 @@ VarselList::getClipboard(Gtk::SelectionData& data, guint type)
         data.set_uris(uris);
         }
         break;
-    case TARGET_GNOME_COPIED_FILES: {
-        const char * prefix = /* files_cutted ? "cut\n" :*/ "copy\n";
+    case CLIPBOARD_TARGET::GNOME_COPIED_FILES: {
+        const char* prefix = m_clipboardMove ? CLIPBOARD_CUT : CLIPBOARD_COPY;
         Glib::ustring text = getSelectionAsText(prefix, false);
-#       ifdef DEBUG
-        std::cout << "VarselList::getClipboard \"" << text << "\"" << std::endl;
-#       endif
         data.set(data.get_target(), text);
         }
         break;
-    case TARGET_UTF8_STRING: {
+    case CLIPBOARD_TARGET::UTF8_STRING: {
         Glib::ustring text = getSelectionAsText(nullptr, true);
-#       ifdef DEBUG
-        std::cout << "VarselList::getClipboard \"" << text << "\"" << std::endl;
-#       endif
         data.set_text(text);
         }
         break;
     }
-
 }
-
-
 
 void
 VarselList::clearClipboard()
 {
     // release the infos linked to clipboard ...
     m_selecion.clear();
+    m_clipboardMove = false;
 }
 
-
+void
+VarselList::setClipboard(bool clipboardMove)
+{
+    m_clipboardMove = clipboardMove;
+    std::vector<PtrEventItem> items;
+    items.reserve(8);
+    if (getSelection(nullptr, items)) {
+        m_selecion.clear();
+        m_selecion.reserve(items.size());
+        for (auto& item : items) {
+            m_selecion.push_back(item->getFile());
+        }
+        Gtk::TargetEntry target_entry0{CLIPBOARD_URIS_CONTENT_TYPE
+                , static_cast<Gtk::TargetFlags>(0)
+                , static_cast<int>(CLIPBOARD_TARGET::TEXT_URI_LIST)};
+        Gtk::TargetEntry target_entry1{CLIPBOARD_GNOME_FILES_CONTENT_TYPE
+                , static_cast<Gtk::TargetFlags>(0)
+                , static_cast<int>(CLIPBOARD_TARGET::GNOME_COPIED_FILES)};
+        Gtk::TargetEntry target_entry2{CLIPBOARD_UTF8_STRINGS_CONTENT_TYPE
+                , static_cast<Gtk::TargetFlags>(0)
+                , static_cast<int>(CLIPBOARD_TARGET::UTF8_STRING)};
+        std::vector<Gtk::TargetEntry> list;
+        list.emplace_back(std::move(target_entry0));
+        list.emplace_back(std::move(target_entry1));    // thunar expects the gnome-type
+        list.emplace_back(std::move(target_entry2));
+        auto refClipboard = Gtk::Clipboard::get();
+        refClipboard->set_can_store(list);
+        if (!refClipboard->set(list
+                , sigc::mem_fun(*this, &VarselList::getClipboard)
+                , sigc::mem_fun(*this, &VarselList::clearClipboard))) {
+            std::cout << "Unable to set clipboard" << std::endl;
+        }
+    }
+}
 
 bool
 VarselList::on_view_key_release_event(GdkEventKey* key)
@@ -356,37 +384,17 @@ VarselList::on_view_key_release_event(GdkEventKey* key)
         std::cout << "Got key" << key->keyval << " up " << upper << std::endl;
 #       endif
         if (upper == GDK_KEY_C) {
-            std::vector<PtrEventItem> items;
-            items.reserve(8);
-            if (getSelection(nullptr, items)) {
-                std::cout << "VarselList::on_view_key_release_event copied " << items.size() << std::endl;
-                m_selecion.clear();
-                for (auto& item : items) {
-                    m_selecion.push_back(item->getFile());
-                }
-                Gtk::TargetEntry target_entry0{"text/uri-list", static_cast<Gtk::TargetFlags>(0), TARGET_TEXT_URI_LIST};
-                Gtk::TargetEntry target_entry1{"x-special/gnome-copied-files", static_cast<Gtk::TargetFlags>(0), TARGET_GNOME_COPIED_FILES};
-                Gtk::TargetEntry target_entry2{"UTF8_STRING", static_cast<Gtk::TargetFlags>(0), TARGET_UTF8_STRING};
-                std::vector<Gtk::TargetEntry> list;
-                list.emplace_back(std::move(target_entry0));
-                list.emplace_back(std::move(target_entry1));    // thunar expects the gnome-type
-                list.emplace_back(std::move(target_entry2));
-                //auto list = Gtk::TargetList::create(target_entry0, target_entry1, target_entry2);
-
-                auto refClipboard = Gtk::Clipboard::get();
-                refClipboard->set_can_store(list);
-                if (!refClipboard->set(list
-                        , sigc::mem_fun(*this, &VarselList::getClipboard)
-                        , sigc::mem_fun(*this, &VarselList::clearClipboard))) {
-                    std::cout << "Unable to set clipboard" << std::endl;
-                }
-            }
+            setClipboard(false);
+            return true;
+        }
+        if (upper == GDK_KEY_X) {
+            setClipboard(true);
             return true;
         }
         if (upper == GDK_KEY_V) {
             auto refClipboard = Gtk::Clipboard::get();
-            refClipboard->request_uris(
-                    sigc::mem_fun(*this, &VarselList::on_uri_received));
+            refClipboard->request_targets(
+                    sigc::mem_fun(*this, &VarselList::on_targets_received));
             return true;
         }
     }
@@ -405,25 +413,64 @@ VarselList::on_text_received(const Glib::ustring& text)
 }
 
 void
-VarselList::on_uri_received(const std::vector<Glib::ustring>& uris)
+VarselList::on_target_received(const Gtk::SelectionData& selection)
 {
-    // for text this gets a count of 0
+    auto dataString = selection.get_data_as_string();
 #   ifdef DEBUG
-    std::cout << "VarselList::on_uri_received " << uris.size() << std::endl;
-    for (size_t i = 0; i < uris.size(); ++i) {
-        std::cout << "   " << uris[i] << std::endl;
-    }
+    std::cout << "VarselList::on_target_received data " << dataString << std::endl;
 #   endif
-    auto sel = m_treeView->get_selection();
-    auto iter = sel->get_selected();
-    if (iter) {
-        auto node = m_refTreeModel->get_node(iter);
-        auto ftn = dynamic_cast<FileTreeNode*>(node);
-        auto dir = ftn->getDirFile();
-        m_data->paste(dir, uris, this);
+    std::vector<Glib::ustring> uris;
+    uris.reserve(8);
+    StringUtils::split(dataString, '\n', uris);
+    bool isMove{false};
+    if (uris.size() > 0
+     && (CLIPBOARD_CUT == uris[0]
+     ||  CLIPBOARD_COPY == uris[0])) {
+        isMove = CLIPBOARD_CUT == uris[0];
+        uris.erase(uris.begin());   // remove the copy/move identifier
     }
-    else {
-        std::cout << "VarselList::on_uri_received no selection!" << std::endl;
+#   ifdef DEBUG
+    std::cout << "VarselList::on_target_received uris " << uris.size() << std::endl;
+#   endif
+    if (uris.size() > 0) {
+        auto sel = m_treeView->get_selection();
+        auto iter = sel->get_selected();
+        if (iter) {
+            auto node = m_refTreeModel->get_node(iter);
+            auto ftn = dynamic_cast<FileTreeNode*>(node);
+            auto dir = ftn->getDirFile();
+            m_data->paste(uris, dir, isMove, this);
+        }
+        else {
+            std::cout << "VarselList::on_uri_received no selection!" << std::endl;
+        }
+    }
+}
+
+void
+VarselList::on_targets_received(const std::vector<Glib::ustring>& targets)
+{
+    auto refClipboard = Gtk::Clipboard::get();
+#   ifdef DEBUG
+    std::cout << "VarselList::on_targets_received " << targets.size() << std::endl;
+#   endif
+    bool requested{false};
+    for (auto& target : targets) {
+        std::cout << "  target " << target << std::endl;
+        if (CLIPBOARD_GNOME_FILES_CONTENT_TYPE == target) {
+            requested = true;
+            refClipboard->request_contents(target
+                    , sigc::mem_fun(*this, &VarselList::on_target_received));
+        }
+    }
+    if (!requested) {
+        for (auto& target : targets) {
+            if (CLIPBOARD_URIS_CONTENT_TYPE == target) {
+                requested = true;
+                refClipboard->request_contents(target
+                        , sigc::mem_fun(*this, &VarselList::on_target_received));
+            }
+        }
     }
 }
 
