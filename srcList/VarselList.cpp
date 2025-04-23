@@ -46,7 +46,7 @@ VarselList::VarselList(
 , ListListener()
 , m_listApp{listApp}
 {
-    auto pix = Gdk::Pixbuf::create_from_resource(m_listApp->get_resource_base_path() + "/varsel.png");
+    auto pix = Gdk::Pixbuf::create_from_resource(m_listApp->get_resource_base_path() + "/va_list.png");
     set_icon(pix);
 
     builder->get_widget("paned", m_paned);

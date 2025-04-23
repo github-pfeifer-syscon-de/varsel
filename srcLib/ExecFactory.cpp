@@ -92,11 +92,13 @@ ExecFactory::createShellWindow(const std::vector<PtrEventItem>& eventItem)
     for (auto& item : eventItem) {
         Glib::ustring cmd;
         cmd.reserve(64);
-#       ifdef DEBUG
-        cmd.append("src/varsel");
-#       else
-        cmd.append("varsel");
-#       endif
+        auto localShell = Gio::File::create_for_path("src/varsel");
+        if (localShell->query_exists()) {
+            cmd.append(localShell->get_path());
+        }
+        else {
+            cmd.append("varsel");
+        }
         cmd.append(" ");
         cmd.append(item->getFile()->get_path());
         Glib::spawn_command_line_async(cmd);

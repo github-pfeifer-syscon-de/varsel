@@ -10,8 +10,8 @@
    inkscape:version="1.4.1 (93de688d07, 2025-03-30)"
    sodipodi:docname="varsel.svg"
    inkscape:export-filename="varsel.png"
-   inkscape:export-xdpi="22.145876"
-   inkscape:export-ydpi="22.145876"
+   inkscape:export-xdpi="21.113401"
+   inkscape:export-ydpi="21.113401"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -26,14 +26,14 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
      inkscape:document-units="mm"
-     inkscape:zoom="1.5340488"
-     inkscape:cx="153.51533"
-     inkscape:cy="209.90206"
-     inkscape:window-width="1763"
-     inkscape:window-height="1033"
-     inkscape:window-x="118"
-     inkscape:window-y="62"
-     inkscape:window-maximized="0"
+     inkscape:zoom="1.0847363"
+     inkscape:cx="396.87065"
+     inkscape:cy="209.72839"
+     inkscape:window-width="1871"
+     inkscape:window-height="1062"
+     inkscape:window-x="49"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
      inkscape:current-layer="layer1" />
   <defs
      id="defs1">
@@ -59,31 +59,19 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1">
-    <rect
-       style="fill:#000000;stroke:#777777;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;paint-order:fill markers stroke;fill-opacity:1;stroke-dasharray:none"
+    <path
+       id="rect1"
+       style="fill:#e3ab72;fill-opacity:1;stroke:#777777;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;paint-order:fill markers stroke"
+       d="m 40.874561,32.770037 h 27.090297 a 5.8902746,5.8902746 32.380298 0 1 5.327953,3.378653 l 1.689626,3.584238 a 5.9022838,5.9022838 32.380298 0 0 5.338817,3.385541 h 16.438325 c 2.77,0 5.000001,2.23 5.000001,5 v 29.32404 c 0,2.77 -2.230001,5 -5.000001,5 H 40.874561 c -2.77,0 -5,-2.23 -5,-5 V 38.459933 c 0,-2.77 2.23,-5.689896 5,-5.689896 z"
+       sodipodi:nodetypes="sccssssssss"
+       inkscape:path-effect="#path-effect1"
+       inkscape:original-d="m 40.874561,32.770037 h 30.825538 l 4.878298,10.348432 h 20.181182 c 2.77,0 5.000001,2.23 5.000001,5 v 29.32404 c 0,2.77 -2.230001,5 -5.000001,5 H 40.874561 c -2.77,0 -5,-2.23 -5,-5 V 38.459933 c 0,-2.77 2.23,-5.689896 5,-5.689896 z"
+       transform="translate(-33.41634,-30.489361)" />
+    <path
        id="rect2"
-       width="71.404182"
-       height="47.602787"
-       x="3.6219511"
-       y="3.6219511"
-       rx="5"
-       ry="5" />
-    <path
-       style="fill:none;stroke:#3aa62e;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="M 18.61324,41.014511 H 61.38676"
-       id="path2-3-2" />
-    <path
-       style="fill:none;stroke:#3aa62e;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="M 18.61324,13.34637 H 61.38676"
-       id="path2-3-6" />
-    <path
-       style="fill:none;stroke:#3aa62e;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="M 18.61324,35.480883 H 61.38676"
-       id="path2-3-3" />
-    <path
-       style="fill:none;stroke:#3aa62e;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="M 18.61324,29.947255 H 61.38676"
-       id="path2-3-1" />
+       style="fill:#cb8961;fill-opacity:1;stroke:#777777;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;paint-order:fill markers stroke"
+       d="m 15.00051,19.757105 57.19523,-10e-7 c 2.77,0 5.53093,2.911978 4.51217,5.48783 l -8.53702,21.585192 c -1.01876,2.575856 -2.229997,5 -4.999997,5 H 8.1708933 c -2.77,0 -5.730109,-2.327952 -5,-5 L 9.2687653,24.51319 c 0.73011,-2.672048 2.9617447,-4.756085 5.7317447,-4.756085 z"
+       sodipodi:nodetypes="sssssssss" />
     <text
        xml:space="preserve"
        style="font-size:12.7px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#838383;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
@@ -95,13 +83,5 @@
          style="font-size:12.7px;fill:#838383;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
          x="10.000504"
          y="14.390976">Var</tspan></text>
-    <path
-       style="fill:none;stroke:#3aa62e;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="M 18.61324,18.879998 H 61.38676"
-       id="path2" />
-    <path
-       style="fill:none;stroke:#3aa62e;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="M 18.61324,24.413626 H 61.38676"
-       id="path2-3" />
   </g>
 </svg>

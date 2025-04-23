@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Encoding=UTF-8
-Version=0.1
-Name=Varsel
-Comment=Some varsel
-Categories=Application;Utility;
-Exec=varsel
-Icon=@APP_ICON@

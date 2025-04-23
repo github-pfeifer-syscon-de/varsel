@@ -64,7 +64,7 @@ SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
 , m_application{varselApp}
 {
     set_title(_("Source"));
-    auto pix = Gdk::Pixbuf::create_from_resource(varselApp->get_resource_base_path() + "/varsel.png");
+    auto pix = Gdk::Pixbuf::create_from_resource(varselApp->get_resource_base_path() + "/va_edit.png");
     set_icon(pix);
     createActions();
     refBuilder->get_widget("notebook", m_notebook);
@@ -188,20 +188,15 @@ SourceView::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& matchingFiles)
 void
 SourceView::createActions()
 {
-    auto newAction = Gio::SimpleAction::create("new");
-    add_action(newAction);
+    auto newAction = add_action("new");
     newAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::newfile));
-    auto saveAction = Gio::SimpleAction::create("save");
-    add_action(saveAction);
+    auto saveAction = add_action("save");
     saveAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::save));
-    auto saveAsAction = Gio::SimpleAction::create("saveAs");
-    add_action(saveAsAction);
+    auto saveAsAction = add_action("saveAs");
     saveAsAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::saveAs));
-    auto loadAction = Gio::SimpleAction::create("load");
-    add_action(loadAction);
+    auto loadAction = add_action("load");
     loadAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::load));
-    auto closeAction = Gio::SimpleAction::create("close");
-    add_action(closeAction);
+    auto closeAction = add_action("close");
     closeAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::close));
     //auto quitAction = Gio::SimpleAction::create(QUIT_ACTION);
     //refActionGroup->add_action(quitAction);
@@ -261,45 +256,53 @@ SourceView::newfile(const Glib::VariantBase& val)
 void
 SourceView::save(const Glib::VariantBase& val)
 {
-    int page = m_notebook->get_current_page();
-    auto srcFile = m_files[page];
-    std::cout << "SourceView::save"
-              << " page " << page
-              << " src " << srcFile->getLabel()  << std::endl;
-    srcFile->save();
+    if (m_notebook->get_n_pages() > 0) {
+        int page = m_notebook->get_current_page();
+        auto srcFile = m_files[page];
+        std::cout << "SourceView::save"
+                  << " page " << page
+                  << " src " << srcFile->getLabel()  << std::endl;
+        srcFile->save();
+    }
 }
 
 void
 SourceView::saveAs(const Glib::VariantBase& val)
 {
-    int page = m_notebook->get_current_page();
-    auto srcFile = m_files[page];
-    std::cout << "SourceView::saveAs"
-              << " page " << page
-              << " src " << srcFile->getLabel()  << std::endl;
-    srcFile->saveAs();
+    if (m_notebook->get_n_pages() > 0) {
+        int page = m_notebook->get_current_page();
+        auto srcFile = m_files[page];
+        std::cout << "SourceView::saveAs"
+                  << " page " << page
+                  << " src " << srcFile->getLabel()  << std::endl;
+        srcFile->saveAs();
+    }
 }
 
 void
 SourceView::load(const Glib::VariantBase& val)
 {
-    std::cout << "SourceView::load" << std::endl;
-    int page = m_notebook->get_current_page();
-    auto srcFile = m_files[page];
-    srcFile->load();
+    if (m_notebook->get_n_pages() > 0) {
+        std::cout << "SourceView::load" << std::endl;
+        int page = m_notebook->get_current_page();
+        auto srcFile = m_files[page];
+        srcFile->load();
+    }
 }
 
 void
 SourceView::close(const Glib::VariantBase& val)
 {
-    std::cout << "SourceView::close" << std::endl;
-    int page = m_notebook->get_current_page();
-    auto srcFile = m_files[page];
-    srcFile->checkSave();
-    m_notebook->remove_page(page);
-    m_files.erase(m_files.begin() + page);
-    if (m_files.empty()) {
-        quit(val);
+    if (m_notebook->get_n_pages() > 0) {
+        std::cout << "SourceView::close" << std::endl;
+        int page = m_notebook->get_current_page();
+        auto srcFile = m_files[page];
+        srcFile->checkSave();
+        m_notebook->remove_page(page);
+        m_files.erase(m_files.begin() + page);
+        if (m_files.empty()) {
+            quit(val);
+        }
     }
 }
 

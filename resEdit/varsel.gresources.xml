@@ -4,6 +4,6 @@
     <file preprocess="xml-stripblanks">varsel-srcwin.ui</file>
     <file preprocess="xml-stripblanks">pref-srcView.ui</file>
     <file preprocess="xml-stripblanks">src-menu.ui</file>
-    <file>varsel.png</file>
+    <file>va_edit.png</file>
   </gresource>
 </gresources>

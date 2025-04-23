@@ -98,11 +98,13 @@ SourceFactory::createSourceWindow(const std::vector<PtrEventItem>& items)
 {
     Glib::ustring cmd;
     cmd.reserve(64);
-#   ifdef DEBUG
-    cmd.append("srcEdit/va_edit");
-#   else
-    cmd.append("va_edit");
-#   endif
+    auto localEdit = Gio::File::create_for_path("srcEdit/va_edit");
+    if (localEdit->query_exists()) {
+        cmd.append(localEdit->get_path());
+    }
+    else {
+        cmd.append("va_edit");
+    }
     for (auto& eventItem : items) {
         cmd.append(" ");
         cmd.append(eventItem->getFile()->get_path());

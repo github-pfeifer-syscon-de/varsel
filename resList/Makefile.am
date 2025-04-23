@@ -17,20 +17,17 @@ $(RESOURCE_C): $(VARSEL_RESOURCE_XML) $(VARSEL_RESOURCES)
 
 # The desktop files
 desktopdir = $(datadir)/applications
-desktop_in_files=va_list.desktop.in
-desktop_DATA=$(desktop_in_files:.desktop.in=.desktop)
+desktop_DATA=va_list.desktop
 
 # application icon
-appicondir = $(datadir)/icons/hicolor/64x64/apps
-appicon_DATA = varsel.png
-appdir_icon=$(appicondir)/$(appicon_DATA)
+icon_basename=va_list
+pixmapdir=$(datadir)/icons/hicolor/64x64/apps
+pixmap_DATA=$(icon_basename).png
+appicondir=$(datadir)/icons/hicolor/scalable/apps
+appicon_DATA=$(icon_basename).svg
 
 # include source for build
-EXTRA_DIST = $(VARSEL_RESOURCE_XML) $(VARSEL_RESOURCES) $(desktop_in_files) $(appicon_DATA)
+EXTRA_DIST = $(VARSEL_RESOURCE_XML) $(VARSEL_RESOURCES) $(desktop_DATA) $(pixmap_DATA) $(appicon_DATA)
 
 clean-local:
 	-rm -rf $(RESOURCE_C)
-	-rm -rf $(desktop_DATA)
-
-$(desktop_DATA): $(desktop_in_files)
-	@regex_cmd@ -e "s,\@APP_ICON\@,$(appdir_icon),g" $? > $@

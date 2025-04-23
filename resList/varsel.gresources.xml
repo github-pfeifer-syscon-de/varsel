@@ -5,6 +5,6 @@
     <file preprocess="xml-stripblanks">varsel-win.ui</file>
     <file preprocess="xml-stripblanks">dlgExtract.ui</file>
     <file preprocess="xml-stripblanks">dlgCopy.ui</file>
-    <file>varsel.png</file>
+    <file>va_list.png</file>
   </gresource>
 </gresources>

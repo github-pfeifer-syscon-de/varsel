@@ -88,11 +88,13 @@ ListFactory::createListWindow(const std::vector<PtrEventItem>& items)
     for (auto& item : items) {
         Glib::ustring cmd;
         cmd.reserve(64);
-#       ifdef DEBUG
-        cmd.append("srcList/va_list");
-#       else
-        cmd.append("va_list");
-#       endif
+        auto localList = Gio::File::create_for_path("srcList/va_list");
+        if (localList->query_exists()) {
+            cmd.append(localList->get_path());
+        }
+        else {
+            cmd.append("va_list");
+        }
         cmd.append(" ");
         cmd.append(item->getFile()->get_path());
         Glib::spawn_command_line_async(cmd);

@@ -40,8 +40,6 @@ PKG_CHECK_MODULES([LIBGIT2],[libgit2 >= 1.8.0])
 
 AM_GNU_GETTEXT([external])
 
-AX_CHECK_SED()
-
 if test "$host_os" = "mingw32" ; then
     AC_SUBST(EXTRA_LDFLAGS, "-mwindows")
 fi
