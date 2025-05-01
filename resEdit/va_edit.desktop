@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Version=0.1
+Name=Varsel-Edit
+Comment=Some varsel
+Categories=Application;Utility;
+Exec=va_edit
+Icon=va_edit
