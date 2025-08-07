@@ -93,21 +93,23 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
     sourceFile->applyStyle(style, fontDesc);
 
     widget->show_all();
-    // create language server early as init takes some time
-    // at the moment we are limited to one language server per source dir
-    auto dir = item->get_parent();
-    auto langServIt = m_ccLangServers.find(dir->get_path());
-    if (langServIt == m_ccLangServers.end()) {
-        auto lang = m_languages.getLanguage(item);
-        if (lang) {
-            auto lspServer = std::make_shared<LspServer>(lang);
-            lspServer->setStatusListener(this);
-            auto init = std::make_shared<LspInit>(dir, lspServer.get());
-            lspServer->communicate(init);
-            m_ccLangServers.insert(std::make_pair(dir->get_path(), lspServer));
-        }
-        else {
-            std::cout << "No language support for " << item->get_basename() << std::endl;
+    if (item) { // only if valid file
+        // create language server early as init takes some time
+        // at the moment we are limited to one language server per source dir
+        auto dir = item->get_parent();
+        auto langServIt = m_ccLangServers.find(dir->get_path());
+        if (langServIt == m_ccLangServers.end()) {
+            auto lang = m_languages.getLanguage(item);
+            if (lang) {
+                auto lspServer = std::make_shared<LspServer>(lang);
+                lspServer->setStatusListener(this);
+                auto init = std::make_shared<LspInit>(dir, lspServer.get());
+                lspServer->communicate(init);
+                m_ccLangServers.insert(std::make_pair(dir->get_path(), lspServer));
+            }
+            else {
+                std::cout << "No language support for " << item->get_basename() << std::endl;
+            }
         }
     }
     m_files.push_back(sourceFile);
