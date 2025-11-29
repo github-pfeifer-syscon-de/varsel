@@ -18,26 +18,31 @@
 
 #pragma once
 
-#include <vector>
+#include <gtkmm.h>
 
-#include "EventBus.hpp"
-
-class ExecFactory
-: public EventBusListener
+class LookupEntry
+: public Gtk::SearchEntry
 {
 public:
-    ExecFactory();
-    explicit ExecFactory(const ExecFactory& listener) = delete;
-    virtual ~ExecFactory() = default;
+    LookupEntry(BaseObjectType* cobject
+        , const Glib::RefPtr<Gtk::Builder>& builder);
+    explicit LookupEntry(const LookupEntry& orig) = delete;
+    virtual ~LookupEntry() = default;
 
-    void notify(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu) override;
-    void createShellWindow(const std::vector<PtrEventItem>& files);
+    void set_entry_text(const Glib::ustring& text);
+
 protected:
+    void on_file_find(Glib::RefPtr<Gio::AsyncResult>& result);
+    void on_search_changed_event();
 
+    Glib::ustring getParsePath(Glib::RefPtr<Gio::File>& file);
 
 private:
-    bool isExecutable(const Glib::RefPtr<Gio::FileInfo>& fileInfo);
-
-    Gtk::MenuItem * createItem(const PtrEventItem& item, Gtk::Menu* gtkMenu);
-
+    bool m_blockLookupEvent{false};
+    Glib::RefPtr<Gio::File> m_fileLookupPath;
+    Glib::ustring m_fileLookupMatch;
+    std::vector<Glib::RefPtr<Gio::File>> m_fileLookupMatched;
+    Glib::RefPtr<Gio::Cancellable> m_fileLooupCancelabel;
+    //sigc::connection m_searchTimer;
 };
+

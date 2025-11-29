@@ -89,3 +89,11 @@
 /test/file_test
 /test/file_test.log
 /pkg/
+/varsel-debug-r32.ff132bb-1-x86_64.pkg.tar.zst
+/varsel-r32.ff132bb-1-x86_64.pkg.tar.zst
+/test.sh
+/src/.save/
+/test/.save/
+/srcLib/.save/
+/srcEdit/.save/
+/srcList/.save/

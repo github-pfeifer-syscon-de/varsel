@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2024 RPf <gpl3@pfeifer-syscon.de>
+ * Copyright (C) 2024 RPf 
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ VarselList::VarselList(
     m_listView = Glib::RefPtr<Gtk::TreeView>::cast_dynamic(listObj);
     m_listView->get_selection()->set_mode(Gtk::SelectionMode::SELECTION_MULTIPLE);
 
+    builder->get_widget_derived("searchText", m_searchText);
     m_listView->signal_button_press_event().connect(
         sigc::mem_fun(*this, &VarselList::on_view_button_press_event), false);
     m_listView->signal_button_release_event().connect(
@@ -74,6 +75,7 @@ void
 VarselList::showFile(const Glib::RefPtr<Gio::File>& file)
 {
     auto info = file->query_info("*");
+    m_searchText->set_entry_text(file->get_path());
     set_title(info->get_display_name());
     m_data = setupDataSource(file);
     if (m_treeView->get_columns().size() == 0) {

@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2025 RPf <gpl3@pfeifer-syscon.de>
+ * Copyright (C) 2025 RPf 
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@ SourceView::SourceView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     refBuilder->get_widget("progress", m_progress);
     set_default_size(640, 480);
     m_languages.readConfig(m_application->getKeyFile());
+    updateActions();
 }
 
 PtrSourceFile
@@ -79,6 +80,7 @@ SourceView::addFile(const Glib::RefPtr<Gio::File>& item)
     auto sourceFile = std::make_shared<SourceFile>(this);
     auto widget = sourceFile->buildSourceView(item);
     m_notebook->append_page(*widget, sourceFile->getLabel());
+    updateActions();
 
     auto settings = m_application->getKeyFile();
     Glib::ustring fontDesc;
@@ -190,16 +192,16 @@ SourceView::showFiles(const std::vector<Glib::RefPtr<Gio::File>>& matchingFiles)
 void
 SourceView::createActions()
 {
-    auto newAction = add_action("new");
-    newAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::newfile));
-    auto saveAction = add_action("save");
-    saveAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::save));
-    auto saveAsAction = add_action("saveAs");
-    saveAsAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::saveAs));
-    auto loadAction = add_action("load");
-    loadAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::load));
-    auto closeAction = add_action("close");
-    closeAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::close));
+    m_newAction = add_action("new");
+    m_newAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::newfile));
+    m_saveAction = add_action("save");
+    m_saveAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::save));
+    m_saveAsAction = add_action("saveAs");
+    m_saveAsAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::saveAs));
+    m_loadAction = add_action("load");
+    m_loadAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::load));
+    m_closeAction = add_action("close");
+    m_closeAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::close));
     //auto quitAction = Gio::SimpleAction::create(QUIT_ACTION);
     //refActionGroup->add_action(quitAction);
     //quitAction->signal_activate().connect(sigc::mem_fun(*this, &SourceView::quit));
@@ -223,6 +225,18 @@ SourceView::createActions()
 		});
     add_action(pref_action);
 }
+
+void
+SourceView::updateActions()
+{
+    bool hasCurrentView = m_notebook->get_n_pages() > 0;
+    m_saveAction->property_enabled().set_value(hasCurrentView);
+    m_saveAsAction->property_enabled().set_value(hasCurrentView);
+    m_loadAction->property_enabled().set_value(hasCurrentView);
+    m_closeAction->property_enabled().set_value(hasCurrentView);
+}
+
+
 
 void
 SourceView::changeLabel(SourceFile* sourceFile)
@@ -258,54 +272,51 @@ SourceView::newfile(const Glib::VariantBase& val)
 void
 SourceView::save(const Glib::VariantBase& val)
 {
-    if (m_notebook->get_n_pages() > 0) {
-        int page = m_notebook->get_current_page();
-        auto srcFile = m_files[page];
-        std::cout << "SourceView::save"
-                  << " page " << page
-                  << " src " << srcFile->getLabel()  << std::endl;
-        srcFile->save();
-    }
+    // validated by action
+    int page = m_notebook->get_current_page();
+    auto srcFile = m_files[page];
+    std::cout << "SourceView::save"
+              << " page " << page
+              << " src " << srcFile->getLabel()  << std::endl;
+    srcFile->save();
 }
 
 void
 SourceView::saveAs(const Glib::VariantBase& val)
 {
-    if (m_notebook->get_n_pages() > 0) {
-        int page = m_notebook->get_current_page();
-        auto srcFile = m_files[page];
-        std::cout << "SourceView::saveAs"
-                  << " page " << page
-                  << " src " << srcFile->getLabel()  << std::endl;
-        srcFile->saveAs();
-    }
+    // validated by action
+    int page = m_notebook->get_current_page();
+    auto srcFile = m_files[page];
+    std::cout << "SourceView::saveAs"
+              << " page " << page
+              << " src " << srcFile->getLabel()  << std::endl;
+    srcFile->saveAs();
 }
 
 void
 SourceView::load(const Glib::VariantBase& val)
 {
-    if (m_notebook->get_n_pages() > 0) {
-        std::cout << "SourceView::load" << std::endl;
-        int page = m_notebook->get_current_page();
-        auto srcFile = m_files[page];
-        srcFile->load();
-    }
+    // validated by action
+    std::cout << "SourceView::load" << std::endl;
+    int page = m_notebook->get_current_page();
+    auto srcFile = m_files[page];
+    srcFile->load();
 }
 
 void
 SourceView::close(const Glib::VariantBase& val)
 {
-    if (m_notebook->get_n_pages() > 0) {
-        std::cout << "SourceView::close" << std::endl;
-        int page = m_notebook->get_current_page();
-        auto srcFile = m_files[page];
-        srcFile->checkSave();
-        m_notebook->remove_page(page);
-        m_files.erase(m_files.begin() + page);
-        if (m_files.empty()) {
-            quit(val);
-        }
+    // validated by action
+    std::cout << "SourceView::close" << std::endl;
+    int page = m_notebook->get_current_page();
+    auto srcFile = m_files[page];
+    srcFile->checkSave();
+    m_notebook->remove_page(page);
+    m_files.erase(m_files.begin() + page);
+    if (m_files.empty()) {
+        quit(val);
     }
+    updateActions();
 }
 
 void

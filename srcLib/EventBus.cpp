@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2025 RPf <gpl3@pfeifer-syscon.de>
+ * Copyright (C) 2025 RPf 
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,8 +70,43 @@ EventBus::distribute(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu)
 {
     for (auto& lsnr : m_eventListner) {
         lsnr->notify(files, gtkMenu);
-        //if (files.empty()) {
-        //    break;     // finish if indicate it was handled
-        //}
+    }
+    if (gtkMenu->get_children().empty()) {
+        for (auto& item : files) {
+            auto menuItem = Gtk::make_managed<Gtk::MenuItem>(
+                Glib::ustring::sprintf("Dflt %s", item->getFile()->get_basename()));
+            gtkMenu->append(*menuItem);
+            menuItem->signal_activate().connect(
+                sigc::bind(
+                    sigc::mem_fun(*this, &EventBus::handle_default)
+                , item->getFile()));
+        }
+    }
+}
+
+void
+EventBus::handle_default(const Glib::RefPtr<Gio::File>& file)
+{
+    std::string arg0 = "/usr/bin/xdg-open";      // go with desktop default
+    std::vector<char *> args;
+    args.reserve(4);
+    args.push_back(const_cast<char*>(arg0.c_str()));    // the api is definied this way...
+    args.push_back(const_cast<char*>(file->get_path().c_str()));
+    args.push_back(nullptr);
+    g_autoptr(GError) error = nullptr;
+    // Spawn child process.
+    GPid pid{};
+    g_spawn_async(nullptr   // working dir
+                 , args.data() // arguments
+                 , nullptr  // envptr
+                 , GSpawnFlags::G_SPAWN_DEFAULT
+                 , nullptr  // childsetup
+                 , this     // user data
+                 , &pid
+                 , &error);
+    if (error) {
+        std::cout <<
+                Glib::ustring::sprintf("Open %s failed with %s"
+                                        , arg0, error->message) << std::endl;
     }
 }

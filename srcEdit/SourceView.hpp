@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2025 RPf <gpl3@pfeifer-syscon.de>
+ * Copyright (C) 2025 RPf 
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -90,10 +90,18 @@ public:
     static constexpr auto LANGUAGESERVER_ARGS = "languageServerArgs";
 protected:
     void createActions();
+    void updateActions();
+
     PtrSourceFile addFile(const Glib::RefPtr<Gio::File>& item);
     PtrSourceFile findView(const Glib::RefPtr<Gio::File>& item);
     int getIndex(const PtrSourceFile& view);
     void on_hide() override;
+
+    Glib::RefPtr<Gio::SimpleAction> m_newAction;
+    Glib::RefPtr<Gio::SimpleAction> m_saveAction;
+    Glib::RefPtr<Gio::SimpleAction> m_saveAsAction;
+    Glib::RefPtr<Gio::SimpleAction> m_loadAction;
+    Glib::RefPtr<Gio::SimpleAction> m_closeAction;
 private:
     EditApp* m_application;
     Gtk::Notebook* m_notebook{nullptr};
@@ -101,6 +109,7 @@ private:
     std::vector<PtrSourceFile> m_files;
     std::map<std::string, PtrLspServer> m_ccLangServers;
     LspConfs m_languages;
+
 };
 
 

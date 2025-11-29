@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2025 RPf <gpl3@pfeifer-syscon.de>
+ * Copyright (C) 2025 RPf 
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,6 +63,7 @@ public:
     void addListener(const pEventListener& listener);
     void distribute(const std::vector<PtrEventItem>& files, Gtk::Menu* gtkMenu);
 protected:
+    void handle_default(const Glib::RefPtr<Gio::File>& file);
 private:
     std::list<pEventListener> m_eventListner;
     //EventNotifyContext* m_eventNotifyContext;
