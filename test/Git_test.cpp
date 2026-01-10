@@ -41,7 +41,8 @@ Git_test::reposCpp()
 {
     std::cout << "Git_test::reposCpp ----------" << std::endl;
     try {
-        psc::git::Repository repo("..");
+        std::cout << "Testing " TOPSRCDIR << std::endl;
+        psc::git::Repository repo(TOPSRCDIR);
         auto commit = repo.getSingelCommit("HEAD^{commit}");
         std::cout << commit->getMessage()  << std::endl;
         auto sig = commit->getSignature();

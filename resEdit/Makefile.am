@@ -6,14 +6,14 @@ PKGCONFIG = pkg-config
 GLIB_COMPILE_RESOURCES = $(shell $(PKGCONFIG) --variable=glib_compile_resources gio-2.0)
 GLIB_COMPILE_SCHEMAS = $(shell $(PKGCONFIG) --variable=glib_compile_schemas gio-2.0)
 
-VARSEL_RESOURCE_XML=varsel.gresources.xml
-RESOURCE_C=../srcEdit/resources.c
-VARSEL_RESOURCES=$(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=. --generate-dependencies $(VARSEL_RESOURCE_XML))
+VARSEL_RESOURCE_XML=$(srcdir)/varsel.gresources.xml
+RESOURCE_C=$(top_srcdir)/srcEdit/resources.c
+VARSEL_RESOURCES=$(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=$(srcdir) --generate-dependencies $(VARSEL_RESOURCE_XML))
 
 all:$(RESOURCE_C)
 
 $(RESOURCE_C): $(VARSEL_RESOURCE_XML) $(VARSEL_RESOURCES)
-	$(GLIB_COMPILE_RESOURCES) --target=$(RESOURCE_C) --sourcedir=. --generate-source $(VARSEL_RESOURCE_XML)
+	$(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=$(dir $<) --generate-source $<
 
 # The desktop files
 desktopdir = $(datadir)/applications

@@ -6,12 +6,13 @@ AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\" \
 	-DPACKAGE_SRC_DIR=\""$(srcdir)."\" \
 	-DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
+    -DTOPSRCDIR=\""$(top_srcdir)"\" \
 	$(GLIBMM_CFLAGS) \
 	$(GENERICIMG_CFLAGS) \
 	$(LIBGIT2_CFLAGS) \
-	-I ../srcList \
-	-I ../srcEdit \
-	-I ../srcLib
+	-I $(top_srcdir)/srcList \
+	-I $(top_srcdir)/srcEdit \
+	-I $(top_srcdir)/srcLib
 
 AM_CFLAGS= \
 	-Wall \
