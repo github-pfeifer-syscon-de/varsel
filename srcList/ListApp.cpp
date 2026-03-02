@@ -25,7 +25,7 @@
 #include <git2.h>
 #include <string_view>
 
-#include "config.h"
+#include "varsel_config.h"
 #include "VarselList.hpp"
 #include "ListApp.hpp"
 

@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2025 RPf 
+ * Copyright (C) 2025 RPf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include <StringUtils.hpp>
 
 #include "LspConf.hpp"
-#include "config.h"
+#include "varsel_config.h"
 
 LspConf::LspConf(const std::shared_ptr<VarselConfig>& config, const Glib::ustring& grp)
 : LspConf(config->getString(grp.c_str(), LANGUAGE_EXEC_KEY)

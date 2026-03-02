@@ -1,6 +1,6 @@
 /* -*- Mode: c++; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2024 RPf 
+ * Copyright (C) 2024 RPf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include <gtkmm.h>
 
 #include "ArchiveDataSource.hpp"
-#include "config.h"
+#include "varsel_config.h"
 #include "VarselList.hpp"
 
 // use additional listener for processing in main thread

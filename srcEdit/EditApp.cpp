@@ -24,7 +24,7 @@
 #include <clocale>
 #include <gtksourceview/gtksource.h>
 
-#include "config.h"
+#include "varsel_config.h"
 #include "EditApp.hpp"
 
 EditApp::EditApp(int argc, char **argv)

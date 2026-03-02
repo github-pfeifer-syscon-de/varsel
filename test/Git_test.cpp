@@ -1,6 +1,6 @@
 /* -*- Mode: c++; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4; coding: utf-8; -*-  */
 /*
- * Copyright (C) 2024 RPf 
+ * Copyright (C) 2024 RPf
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +26,12 @@
 
 #include "GitRepository.hpp"
 #include "Git_test.hpp"
+#include "varsel_config.h"
 
-// this is a "manual" test
+// this is a "manual" test -> check output
 
 Git_test::Git_test()
 {
-
 	git_libgit2_init();
 }
 
@@ -41,7 +41,7 @@ Git_test::reposCpp()
 {
     std::cout << "Git_test::reposCpp ----------" << std::endl;
     try {
-        std::cout << "Testing " TOPSRCDIR << std::endl;
+        std::cout << "Testing " << TOPSRCDIR << std::endl;
         psc::git::Repository repo(TOPSRCDIR);
         auto commit = repo.getSingelCommit("HEAD^{commit}");
         std::cout << commit->getMessage()  << std::endl;

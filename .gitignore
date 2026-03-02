@@ -27,7 +27,6 @@
 /test/Makefile
 /test/test-suite.log
 /po/Makefile
-/po/POTFILES
 /po/de.gmo
 /po/varsel.pot
 /m4/ltsugar.m4
@@ -97,3 +96,4 @@
 /srcLib/.save/
 /srcEdit/.save/
 /srcList/.save/
+/build.sh
