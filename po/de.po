@@ -6,8 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: varsel 0.1\n"
-"Report-Msgid-Bugs-To: varsel@pfeifer-syscon.de\n"
-"POT-Creation-Date: 2024-12-22 08:33+0100\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-02 18:00+0100\n"
 "PO-Revision-Date: 2024-12-22 08:34+0100\n"
 "Last-Translator:  <varsel@pfeifer-syscon.de>\n"
 "Language-Team: German <translation-team-de@lists.sourceforge.net>\n"
@@ -17,39 +17,179 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/VarselList.cpp:90
+#: src/VarselWin.cpp:361
+msgid "Varsel"
+msgstr "Varsel"
+
+#: src/VarselWin.cpp:448
+#, c-format
+msgid "Could not find file %s not included!"
+msgstr "Konnte Datei nicht finen %s nicht eingeschlossen!"
+
+#: src/VarselWin.cpp:504 srcEdit/SourceView.cpp:222
+#, c++-format
+msgid "Unable to load {} error {}"
+msgstr "Konnte {}  nicht geladen werden Fehler {}"
+
+#: srcEdit/SourceView.cpp:66
+msgid "Source"
+msgstr "Quellen"
+
+#: srcEdit/SourceView.cpp:132
+msgid "Started "
+msgstr "Gestartet "
+
+#: srcEdit/SourceView.cpp:140
+msgid "Completed "
+msgstr "Vollständig "
+
+#: srcEdit/SourceView.cpp:153
+msgid "Server exited."
+msgstr "Server beendet."
+
+#: srcEdit/SourceView.cpp:356
+#, c++-format
+msgid ""
+"To use this functions a language server protocol implementation and a setup "
+"e.g. {} file(s) are required in {}"
+msgstr ""
+"Um die Funktionen des Sprach-Server-Protokols zu nutzen ist die Vorbereitung "
+"z.B. die {} Datei(en) werden benötigt in {}"
+
+#: srcEdit/SourceView.cpp:361
+#, c++-format
+msgid "The server did not announce support for method {}"
+msgstr "Der Server har keine Unterstützung für die Methode {}"
+
+#: srcList/VarselList.cpp:82
+msgid "Name"
+msgstr "Namen"
+
+#: srcList/VarselList.cpp:508
 #, c++-format
 msgid "Error {} loading {}"
-msgstr ""
+msgstr "Fehler {} beim laden {}"
 
-#: src/VarselWin.cpp:41
-msgid "Save File"
-msgstr ""
+#: srcList/ArchiveDataSource.cpp:189
+#, c-format
+msgid "Error %s"
+msgstr "Fehler %s"
 
-#: src/VarselWin.cpp:42
-msgid "Open File"
-msgstr ""
+#: srcList/ArchiveDataSource.cpp:193
+#, c-format
+msgid "Missmatch transfered files %d got %d"
+msgstr "Fehler bei der Übertragung der Dateien %d vorhanden %d"
 
-#: src/VarselWin.cpp:48
-msgid "_Cancel"
-msgstr ""
+#: srcList/ArchiveDataSource.cpp:196
+#, c-format
+msgid "Transfered files %d"
+msgstr "Übertragene Dateien %d"
 
-#: src/VarselWin.cpp:50
-msgid "_Save"
-msgstr ""
+#: srcList/ArchiveDataSource.cpp:269 srcList/ArchiveDataSource.cpp:270
+#, c-format
+msgid "Extract %s"
+msgstr "Extrahiert %s"
 
-#: src/VarselWin.cpp:51
-msgid "_Open"
-msgstr ""
+#: srcLib/Archiv.cpp:76 res/app-menu.ui:6
+msgid "File"
+msgstr "Datei"
 
-#: src/VarselWin.cpp:135
-msgid "Varsel"
-msgstr ""
+#: srcLib/Archiv.cpp:79
+msgid "Link"
+msgstr "Verknüpfung"
 
-#: src/DataSource.hpp:56
-msgid "Name"
-msgstr ""
+#: srcLib/Archiv.cpp:82
+msgid "Socket"
+msgstr "Socket"
 
-#: src/DataSource.hpp:58
-msgid "Size"
-msgstr ""
+#: srcLib/Archiv.cpp:85
+msgid "Character device"
+msgstr "Zeichengerät"
+
+#: srcLib/Archiv.cpp:88
+msgid "Block device"
+msgstr "Blockgerät"
+
+#: srcLib/Archiv.cpp:91
+msgid "Directory"
+msgstr "Verzeichnis"
+
+#: srcLib/Archiv.cpp:94
+msgid "Fifo"
+msgstr "Fifo"
+
+#: srcLib/Archiv.cpp:229 srcLib/Archiv.cpp:235 srcLib/Archiv.cpp:260
+#: srcLib/Archiv.cpp:323 srcLib/Archiv.cpp:335
+#, c++-format
+msgid "Archiv error {}"
+msgstr "Archiv Fehler {}"
+
+#: srcLib/Archiv.cpp:398 srcLib/Archiv.cpp:453
+msgid "open"
+msgstr "offen"
+
+#: srcLib/Archiv.cpp:414
+msgid "read"
+msgstr "lesen"
+
+#: srcLib/Archiv.cpp:426
+msgid "skip"
+msgstr "überspringen"
+
+#: srcLib/Archiv.cpp:465
+msgid "write"
+msgstr "schreiben"
+
+#: srcLib/Archiv.cpp:480
+msgid "close"
+msgstr "schließen"
+
+#: srcLib/Archiv.cpp:559
+msgid "read source"
+msgstr "Quellen lesen"
+
+#: srcLib/Archiv.cpp:607
+#, fuzzy, c++-format
+msgid "Error {} scanning {}"
+msgstr "Fehler {} beim laden {}"
+
+#: res/app-menu.ui:9
+msgid "Load"
+msgstr "Laden"
+
+#: res/app-menu.ui:13
+#, fuzzy
+msgid "Save"
+msgstr "Speichern"
+
+#: res/app-menu.ui:17
+msgid "Config"
+msgstr "Configuration"
+
+#: res/app-menu.ui:21
+msgid "Quit"
+msgstr "Beenden"
+
+#: res/app-menu.ui:27
+msgid "Help"
+msgstr "Hilfe"
+
+#: res/app-menu.ui:30
+msgid "_Help"
+msgstr "_Hilfe"
+
+#: res/app-menu.ui:34
+msgid "_About"
+msgstr "_Über"
+
+#~ msgid "Open File"
+#~ msgstr "Datei öffnen"
+
+#~ msgid "_Cancel"
+#~ msgstr "Abbrechen"
+
+#~ msgid "_Open"
+#~ msgstr "Öffnen"
+
+#~ msgid "Size"
+#~ msgstr "Größe"
