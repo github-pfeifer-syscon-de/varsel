@@ -36,6 +36,7 @@ protected:
     void on_search_changed_event();
 
     Glib::ustring getParsePath(Glib::RefPtr<Gio::File>& file);
+    void on_search_completed();
 
 private:
     bool m_blockLookupEvent{false};
@@ -43,6 +44,7 @@ private:
     Glib::ustring m_fileLookupMatch;
     std::vector<Glib::RefPtr<Gio::File>> m_fileLookupMatched;
     Glib::RefPtr<Gio::Cancellable> m_fileLooupCancelabel;
+    Glib::Dispatcher m_fileLookupDispatch;
     //sigc::connection m_searchTimer;
 };
 

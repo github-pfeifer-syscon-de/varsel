@@ -40,7 +40,8 @@ public:
     void apply_dir();
     void showFile(GdkEvent* event, const std::string& uri);
     void openTerm(const std::string& uri);
-    void apply_font(const Glib::ustring& font, const Gdk::RGBA& backgrd);
+    void apply_font(const Glib::ustring& font);
+    void apply_colors(const Gdk::RGBA& backgrd);
     void apply_arg();
     Gtk::ScrolledWindow* getScroll();
     Gtk::Widget* getLabel();

@@ -34,7 +34,8 @@ LookupEntry::LookupEntry(BaseObjectType* cobject
 //                sigc::mem_fun(*this, &VarselList::on_search_changed_event)
 //                , 200);
 //        });
-
+    m_fileLookupDispatch.connect(
+        sigc::mem_fun(*this, &LookupEntry::on_search_completed));
 }
 
 void
@@ -70,16 +71,28 @@ LookupEntry::on_file_find(Glib::RefPtr<Gio::AsyncResult>& result)
             if (m_fileLookupMatched.size() == 1) {  // care only if matched
                 auto matchedFile = m_fileLookupMatched[0];
                 set_entry_text(getParsePath(matchedFile));
+                std::cout << "LookupEntry::on_file_find found " << matchedFile->get_path() << std::endl;
             }
             break;
         }
         auto file = m_fileLookupPath->get_child(fileInfo->get_name());
         if (file->get_parse_name().rfind(m_fileLookupMatch, 0) == 0) {  // ~startsWith
             m_fileLookupMatched.push_back(file);    // collect candidates
+            std::cout << "LookupEntry::on_file_find adding " << file->get_path() << std::endl;
         }
 
     }
+    if (!m_fileLookupMatched.empty()) {
+        m_fileLookupDispatch.emit();
+    }
     en->close();
+}
+
+void
+LookupEntry::on_search_completed()
+{
+    //add_
+    std::cout << "LookupEntry::on_search_completed" << std::endl;
 }
 
 void
@@ -89,15 +102,17 @@ LookupEntry::on_search_changed_event()
         return;
     }
     const auto path = get_text();
-    std::cout << "LookupEntry::on_search_changed_event " << path << std::endl;
-
     int pos = path.rfind('/');
     if (pos > 0 && path.length() - pos > 3) {
         if (m_fileLooupCancelabel) {
             m_fileLooupCancelabel->cancel();
         }
         m_fileLooupCancelabel = Gio::Cancellable::create();
-        m_fileLookupPath = Gio::File::create_for_parse_name(path.substr(0, pos));
+        auto lookup = path.substr(0, pos);
+        std::cout << "LookupEntry::on_search_changed_event"
+                  << " path " << path
+                  << " lookup " << lookup << std::endl;
+        m_fileLookupPath = Gio::File::create_for_parse_name(lookup);
         m_fileLookupMatch = path.substr(pos + 1);
         m_fileLookupMatched.clear();
         m_fileLookupMatched.reserve(8);

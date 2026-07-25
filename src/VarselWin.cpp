@@ -51,7 +51,7 @@ getWhere(GtkWidget* widget)
         }
     }
     else {
-        std::cout << "no path from terinal use in .bashrc \". /etc/profile.d/vte.sh\"" << std::endl;
+        std::cout << "no path from terminal use in .bashrc \". /etc/profile.d/vte.sh\"" << std::endl;
     }
     return strUri;
 }
@@ -271,9 +271,9 @@ VarselView::getLabel()
 }
 
 void
-VarselView::apply_font(const Glib::ustring& font, const Gdk::RGBA& backgrd)
+VarselView::apply_font(const Glib::ustring& font)
 {
-    //std::cout << "VarselWin::apply_font " << font << std::endl;
+    std::cout << "VarselWin::apply_font " << font << std::endl;
     if (!font.empty()) {
         Pango::FontDescription desc = Pango::FontDescription(font);
         //std::cout << "VarselWin::apply_font " << desc.to_string() << std::endl;
@@ -284,8 +284,35 @@ VarselView::apply_font(const Glib::ustring& font, const Gdk::RGBA& backgrd)
     else if (m_defaultFont) {
         vte_terminal_set_font(m_vte_terminal, m_defaultFont);
     }
+}
 
-    vte_terminal_set_color_background(m_vte_terminal, backgrd.gobj());
+void
+VarselView::apply_colors(const Gdk::RGBA& backgrd)
+{
+    std::cout << "VarselWin::apply_colors " << backgrd.to_string() << std::endl;
+    Gdk::RGBA white("rgba(255,255,255,0)");
+    std::array<GdkRGBA, 16> palette;
+    palette[0] = GdkRGBA{0.0,0.0,0.0,1.0};    // black
+    palette[1] = GdkRGBA{0.5,0,0,1.0};        // dim.red
+    palette[2] = GdkRGBA{0,0.5,0,1.0};        // dim.green
+    palette[3] = GdkRGBA{0.8,0.4,0.2,1.0};    // dim.brown (aka sienna bob ross would be proud)
+    palette[4] = GdkRGBA{0,0,0.5,1.0};        // dim.blue
+    palette[5] = GdkRGBA{0.5,0,0.5,1.0};      // dim.violet
+    palette[6] = GdkRGBA{0,0.5,0.5,1.0};      // dim.teal
+    palette[7] = GdkRGBA{0.6,0.6,0.6,1.0};    // dim.white
+    palette[8] = GdkRGBA{0.4,0.4,0.4,1.0};    // gray
+    palette[9] = GdkRGBA{1.0,0,0,1.0};        // br.red
+    palette[10] = GdkRGBA{0,1.0,0,1.0};       // br.green
+    palette[11] = GdkRGBA{1.0,1.0,0,1.0};     // br.yellow
+    palette[12] = GdkRGBA{0,0,1.0,1.0};       // br.blue
+    palette[13] = GdkRGBA{1.0,0,1.0,1.0};     // br.violet
+    palette[14] = GdkRGBA{0,1.0,1.0,1.0};     // br.teal
+    palette[15] = GdkRGBA{1.0,1.0,1.0,1.0};   // br.white
+    vte_terminal_set_colors(m_vte_terminal,
+        white.gobj(),
+        backgrd.gobj(),
+        palette.data(), palette.size());
+    vte_terminal_set_bold_is_bright(m_vte_terminal, TRUE);  // makes bright work
 }
 
 void
@@ -471,7 +498,8 @@ VarselWin::openTerm(const std::string& uri, const std::string& script)
     //std::cout << "openTerm "
     //          << " uri \"" << uri << "\"" << std::endl;
     auto view = std::make_shared<VarselView>(uri, script, this);
-    view->apply_font(getFont(), getBackground());
+    view->apply_font(getFont());
+    view->apply_colors(getBackground());
     auto widget = view->getScroll();
     m_notebook->append_page(*widget, *view->getLabel());
     widget->show_all();
@@ -536,7 +564,8 @@ VarselWin::apply_font(const std::string& font, const Gdk::RGBA& backgrd)
 {
     set_opacity(backgrd.get_alpha());   // make this transparent so the term opacity is shown
     for (auto& view : m_views) {
-        view->apply_font(font, backgrd);
+        view->apply_font(font);
+        view->apply_colors(backgrd);
     }
 }
 
